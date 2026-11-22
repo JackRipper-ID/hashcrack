@@ -1,154 +1,197 @@
-# ⚡ HASHCRACK
+<div align="center">
 
-**by JackRipper-ID** · [MIT License](LICENSE)
+# ⚡ H A S H C R A C K
 
-`python3` `termux` `hash-cracker` `bcrypt` `pentest` `offline` `cpu`
+### *Animated local hash cracker — CPU-only, no GPU needed*
 
-Local hash cracker (CPU-only) with a fully animated TUI. Works on **Linux
-desktop** and **Android Termux**.
+**by [JackRipper-ID](https://github.com/JackRipper-ID)** · [MIT License](LICENSE)
+
+![python](https://img.shields.io/badge/python-3.8%2B-blue)
+![platform](https://img.shields.io/badge/platform-linux%20%7C%20termux%20%7C%20kali-success)
+![license](https://img.shields.io/badge/license-MIT-green)
+![deps](https://img.shields.io/badge/required%20deps-zero-orange)
+![formats](https://img.shields.io/badge/hash%20formats-39%2B-9cf)
 
 ```
-  ██╗  ██╗ █████╗ ███████╗██╗  ██╗ ██████╗██████╗  █████╗  ██████╗██╗  ██╗
-  ██║  ██║██╔══██╗██╔════╝██║  ██║██╔════╝██╔══██╗██╔══██╗██╔════╝██║ ██╔╝
-  ███████║███████║███████╗███████║██║     ██████╔╝███████║██║     █████╔╝ 
-  ██╔══██║██╔══██║╚════██║██╔══██║██║     ██╔══██╗██╔══██║██║     ██╔═██╗ 
-  ██║  ██║██║  ██║███████║██║  ██║╚██████╗██║  ██║██║  ██║╚██████╗██║  ██╗
-  ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│   ⠋ menganalisis   ['sha256', 'blake2s', 'sha3_256']        │
+│                                                             │
+│   ████████████████████████████░░░░░░░░░░  62.4%             │
+│                                                             │
+│   kecepatan ▄▂▁▄▅▃▆▇▅▄▆█▇▅▄  82 H/s   ETA 1.2 menit         │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
+*The live panel — spinner, gradient bar, speed sparkline. Redrawn in place, never scrolls.*
 
-> ⚠️ Use only on hashes you own or are authorized to test (your own accounts,
-> sanctioned pentests, CTFs). Unauthorized access to other people's systems is
-> illegal.
+</div>
 
-## Features
+---
 
-- **39+ hash formats** with automatic detection (full list below)
-- **Live animated panel** redrawn in place (no scrolling): spinner, flowing
-  gradient progress bar, real-time speed sparkline
-- **6 attack modes**: wordlist, wordlist + rules/mutations, mask, PIN,
-  literal candidates, two-wordlist combo
-- **Encrypted ZIP cracking** — ZipCrypto (stdlib) and AES-256 (via `7z`)
-- **All CPU cores** via multiprocessing; automatic `spawn` fallback on Termux
-- **CPU boost on rooted Android** — lifts the thermal cpufreq cap
-  (`/sys/power/cpufreq_max_limit`) for up to +80% throughput
-- **Auto wordlist discovery** — anything in `~/wordlists/` or the tool's
-  folder shows up in the menu automatically
-- **Guided interactive menu** + fast CLI mode
+> ⚠️ **Ethical use only.** Use on hashes you own or are authorized to test
+> (your own accounts, sanctioned pentests, CTFs). Unauthorized access to
+> other people's systems is illegal.
 
-## Supported formats
+---
 
-**Plain hex:** MD4, MD5, SHA-1/224/256/384/512, SHA3-224/256/384/512,
-BLAKE2s/BLAKE2b, RIPEMD-160, SM3, SHA-512/224, SHA-512/256, NTLM, LM,
-MySQL 3.23, MySQL 4.1, PostgreSQL md5, Oracle 10/11, MS SQL 2000/2005,
-MS Domain Cache v1/v2, HTTP Digest, CRC32
+## ✨ Features
 
-**Crypt / formatted:** bcrypt (`$2a/$2b/$2y/$2x`), bcrypt-sha256, md5crypt
-(`$1$`), apr1/htpasswd (`$apr1$`), sha256crypt (`$5$`), sha512crypt (`$6$`),
-sha1crypt, sun-md5, phpass (WordPress/phpBB `$P$`/`$H$`), PBKDF2
-(sha1/sha256/sha512), Django PBKDF2, GRUB PBKDF2, SCRAM, bsdi-crypt,
-crypt16, DES, Atlassian `{PKCS5S2}`, LDAP `{SSHA}`, FSHP, and more.
+| | |
+|---|---|
+| 🔍 **39+ hash formats** | auto-detected — ambiguous hex lengths tested against *all* matching algorithms at once |
+| 🎞️ **Fully animated TUI** | live panel redrawn in place (no scrolling): braille spinner, flowing gradient bar, real-time sparkline |
+| ⚔️ **6 attack modes** | wordlist · wordlist+rules · mask · PIN · literal · 2-wordlist combo |
+| 🗜️ **Encrypted ZIP** | ZipCrypto (pure Python) and AES-256 (via `7z`) |
+| 🧵 **All cores** | multiprocessing with automatic `spawn` fallback |
+| 🚀 **Android CPU boost** | lifts the thermal cpufreq cap on rooted devices (~+25–80% on SD865) |
+| 📚 **Auto wordlist discovery** | drop any `.txt`/`.lst` in `~/wordlists/` — it appears in the menu |
+| 📦 **Zero required deps** | pure Python stdlib; optional `bcrypt`/`passlib` unlock more formats |
 
-Ambiguous hex lengths (e.g. 32-char) are tested against **all matching
-algorithms at once** — no guessing needed.
+## 📦 Install
 
-## Quick start
-
-### Linux desktop
+### Kali Linux / Debian / Ubuntu / Parrot / Fedora / Arch
 
 ```bash
-pip install bcrypt passlib
+git clone https://github.com/JackRipper-ID/hashcrack.git
+cd hashcrack
+sudo bash install-linux.sh    # installs deps + the `hashcrack` command
+```
+
+Or manually:
+
+```bash
+git clone https://github.com/JackRipper-ID/hashcrack.git
+cd hashcrack
+chmod +x hashcrack.py
+
+# optional — unlocks bcrypt & 30+ crypt formats
+sudo apt install python3-bcrypt python3-passlib p7zip-full
+
 ./hashcrack.py
 ```
 
+<details>
+<summary><b>Install as a system command (<code>hashcrack</code> anywhere)</b></summary>
+
+```bash
+sudo cp hashcrack.py /usr/local/bin/hashcrack
+sudo chmod +x /usr/local/bin/hashcrack
+hashcrack --identify -H '<hash>'
+```
+
+</details>
+
+<details>
+<summary><b>Kali one-liner (all deps)</b></summary>
+
+```bash
+sudo apt install -y python3-bcrypt python3-passlib p7zip-full && \
+git clone https://github.com/JackRipper-ID/hashcrack.git && \
+cd hashcrack && ./hashcrack.py
+```
+
+Kali already ships `wordlists` at `/usr/share/wordlists/` — hashcrack
+finds `rockyou.txt` there automatically.
+
+</details>
+
 ### Termux (Android)
 
-Copy `hashcrack.py` and `install-termux.sh` to the phone (e.g. via
-`termux-setup-storage` then copy from Download), then:
-
 ```bash
+# copy hashcrack.py + install-termux.sh to the phone first, then:
 bash install-termux.sh
+hashcrack
 ```
 
-The installer sets up python, p7zip, bcrypt, passlib, creates the
-`hashcrack` command, and prepares `~/wordlists/`.
+The installer sets up python, p7zip, bcrypt, passlib, the `hashcrack`
+command, and `~/wordlists/`. On **rooted** phones the tool auto-boosts
+CPU clocks while cracking.
 
-On a **rooted** device the tool also auto-boosts CPU clocks while running
-(~+25–80% on Snapdragon 865-class SoCs).
-
-### One-liner tests
+## 🚀 Usage
 
 ```bash
-# identify a hash
-./hashcrack.py --identify -H '<hash>'
-
-# wordlist attack
-./hashcrack.py -H 5f4dcc3b5aa765d61d8327deb882cf99 -w wordlist.txt
-
-# wordlist + mutations (capital first letter, trailing digits, leet, years)
-./hashcrack.py -H <hash> -w rockyou.txt -r
-
-# mask: 4 lowercase letters + 2 digits
-./hashcrack.py -H <hash> --mask "?l?l?l?l?d?d"
-
-# 6-digit PIN
-./hashcrack.py -H <hash> --digits 6
-
-# test specific candidates
-./hashcrack.py -H <hash> --literal "password,test123"
-
-# combine two wordlists (word1 + word2)
-./hashcrack.py -H <hash> --combo names.txt numbers.txt
-
-# force algorithm / supply username where needed
-./hashcrack.py -H <hash> -w wl.txt --algo ntlm
-./hashcrack.py -H 'md5<32hex>' -w wl.txt --user postgres
-
-# encrypted zip (ZipCrypto & AES-256)
-./hashcrack.py -H file.zip
+./hashcrack.py                    # interactive menu (guided)
+./hashcrack.py --identify -H '<hash>'   # detect hash type only
 ```
 
-Interactive menu (no arguments) walks through everything: paste hash → pick
-algorithm → pick attack → pick wordlist → watch the animated panel.
+| Attack | Command |
+|---|---|
+| Wordlist | `hashcrack -H <hash> -w rockyou.txt` |
+| Wordlist + mutations | `hashcrack -H <hash> -w rockyou.txt -r` |
+| Mask (4 letters + 2 digits) | `hashcrack -H <hash> --mask "?l?l?l?l?d?d"` |
+| 6-digit PIN | `hashcrack -H <hash> --digits 6` |
+| Test candidates | `hashcrack -H <hash> --literal "pass,test123"` |
+| Two-wordlist combo | `hashcrack -H <hash> --combo names.txt numbers.txt` |
+| Encrypted ZIP | `hashcrack -H file.zip` |
+| Force algorithm | `hashcrack -H <hash> -w wl.txt --algo ntlm` |
+| Username formats | `hashcrack -H <hash> -w wl.txt --user postgres` |
 
 ### Mask codes
 
-| Code | Meaning |
-|:--|:--|
-| `?l` | lowercase |
-| `?u` | uppercase |
-| `?d` | digits |
-| `?s` | symbols |
-| `?a` | all printable |
-| `?h` / `?H` | hex lower / upper |
+| `?l` | `?u` | `?d` | `?s` | `?a` | `?h`/`?H` |
+|:--:|:--:|:--:|:--:|:--:|:--:|
+| lowercase | uppercase | digits | symbols | all | hex |
 
-## Wordlists
+## 🔐 Supported formats
 
-The tool scans (smallest first) anything matching `*.txt`/`*.lst`/`*.dic`
-in `~/wordlists/` and the tool's own folder. Recommended:
+<details>
+<summary><b>Plain hex digests</b></summary>
 
-- [rockyou.txt](https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt) — 14M passwords
-- Indonesian passwords: [elliottophellia/wordlist](https://github.com/elliottophellia/wordlist)
+MD4 · MD5 · SHA-1 · SHA-224 · SHA-256 · SHA-384 · SHA-512
+SHA3-224/256/384/512 · BLAKE2s · BLAKE2b · RIPEMD-160 · SM3
+SHA-512/224 · SHA-512/256 · NTLM · LM · MySQL 3.23 · MySQL 4.1
+PostgreSQL md5 · Oracle 10/11 · MS SQL 2000/2005 · MS Domain Cache v1/v2
+HTTP Digest · CRC32
+
+</details>
+
+<details>
+<summary><b>Crypt / formatted hashes</b></summary>
+
+bcrypt (`$2a/$2b/$2y/$2x`) · bcrypt-sha256 · md5crypt (`$1$`)
+apr1/htpasswd (`$apr1$`) · sha256crypt (`$5$`) · sha512crypt (`$6$`)
+sha1crypt (`$sha1$`) · sun-md5 (`$md5,rounds=`) · phpass (`$P$`/`$H$`)
+PBKDF2 (sha1/sha256/sha512) · Django PBKDF2 · GRUB PBKDF2 · SCRAM
+bsdi-crypt (`_…`) · crypt16 · DES · Atlassian `{PKCS5S2}` · LDAP `{SSHA}`
+FSHP · Cisco PIX/ASA · and more
+
+</details>
+
+## 📚 Wordlists
+
+hashcrack scans `~/wordlists/` and its own folder (smallest first):
+
+- [rockyou.txt](https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt) — 14M passwords, the classic
 - [SecLists](https://github.com/danielmiessler/SecLists) — language-specific common passwords
+- [Indonesian passwords](https://github.com/elliottophellia/wordlist) — 10M real ID passwords
+- Kali users: `/usr/share/wordlists/rockyou.txt` is found automatically
 
-## Typical performance
+## ⏱️ Typical performance
 
 | Device | SHA-256 | bcrypt cost 10 |
 |:--|--:|--:|
 | Laptop 4-core (i7-7600U) | ~300k H/s | ~40 H/s |
 | Phone 8-core (SD865, Termux, boosted) | ~116k H/s | ~75–82 H/s |
 
-bcrypt is intentionally slow — large wordlists take hours on any CPU-only
-setup. Use `termux-wake-lock` on Android so the process isn't frozen when
-the screen turns off.
+> bcrypt is intentionally slow — big wordlists take hours on any CPU-only
+> setup. On Android run `termux-wake-lock` so the process survives screen-off.
 
-## Files
+## 🗂️ Files
 
 ```
-hashcrack.py          main tool (single file, no required deps)
-install-termux.sh     automated Termux installer
-top1m.txt             1M-password wordlist (optional)
+hashcrack.py         main tool — single file, stdlib only
+install-linux.sh     automated installer for Kali/Debian/Ubuntu/Fedora/Arch
+install-termux.sh    automated Termux (Android) installer
+LICENSE              MIT © JackRipper-ID
 ```
 
-## License
+---
 
-MIT © JackRipper-ID
+<div align="center">
+
+**⚡ HASHCRACK** · crafted by **JackRipper-ID**
+
+*if this repo helped you, a ⭐ is appreciated*
+
+</div>
