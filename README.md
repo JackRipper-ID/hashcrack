@@ -6,7 +6,7 @@
     ░▀░▀░▀░▀░▀▀▀░▀░▀░▀▀▀░▀░▀░▀░▀░▀▀▀░▀░▀
 ```
 
-### Animated local hash cracker — CPU-only, no GPU needed
+### HASHCRACK local Tools hash cracker — CPU-only, no GPU needed
 
 **by [JackRipper-ID](https://github.com/JackRipper-ID)** · [MIT License](LICENSE)
 
