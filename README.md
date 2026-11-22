@@ -66,13 +66,46 @@ Live panel preview (redrawn in place, never scrolls):
 
 ## Install
 
-### Kali Linux / Debian / Ubuntu / Parrot / Fedora / Arch
+### App-style install (one click from your menu)
+
+After installing, **HASHCRACK appears in your application menu with its own
+icon**. Clicking it opens a terminal window running the tool — no typing
+needed. When you quit, the window stays open so results remain readable.
 
 ```bash
 git clone https://github.com/JackRipper-ID/hashcrack.git
 cd hashcrack
-sudo bash install-linux.sh    # installs deps + the `hashcrack` command
+sudo bash install-linux.sh
 ```
+
+That installs:
+
+| Path | What |
+|---|---|
+| `/usr/local/bin/hashcrack` | the command (also what the menu launches) |
+| `/usr/share/hashcrack/hashcrack.py` | the program |
+| `/usr/share/applications/hashcrack.desktop` | menu entry (`Terminal=true`) |
+| `/usr/share/icons/hicolor/256x256/apps/hashcrack.png` | app icon |
+
+### Prebuilt packages
+
+Grab them from [Releases](https://github.com/JackRipper-ID/hashcrack/releases):
+
+```bash
+# Debian / Ubuntu / Kali / Parrot
+sudo apt install ./hashcrack_1.0.0_all.deb
+
+# any distro, no install needed
+chmod +x HASHCRACK-1.0.0-x86_64.AppImage
+./HASHCRACK-1.0.0-x86_64.AppImage
+```
+
+The `.deb` registers the menu entry and icon automatically. The AppImage is
+portable — run it from anywhere, or integrate it with
+[AppImageLauncher](https://github.com/TheAssassin/AppImageLauncher) to get a
+menu icon too.
+
+### Kali Linux / Debian / Ubuntu / Parrot / Fedora / Arch (manual)
 
 Or manually:
 
@@ -197,8 +230,11 @@ hashcrack scans `~/wordlists/` and its own folder (smallest first):
 
 ```
 hashcrack.py         main tool — single file, stdlib only
-install-linux.sh     automated installer for Kali/Debian/Ubuntu/Fedora/Arch
+hashcrack.sh         launcher used by the desktop entry
+install-linux.sh     installer: command + menu entry + icon
 install-termux.sh    automated Termux (Android) installer
+packaging/           .desktop file, AppRun, AppDir tree
+assets/              app icon (SVG + PNG set + ICO)
 LICENSE              MIT © JackRipper-ID
 ```
 

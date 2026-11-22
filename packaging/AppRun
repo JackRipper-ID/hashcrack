@@ -1,0 +1,31 @@
+#!/bin/sh
+# HASHCRACK AppImage launcher
+HERE="$(dirname "$(readlink -f "$0")")"
+
+PY=""
+for c in python3 python; do
+  if command -v "$c" >/dev/null 2>&1 &&
+     "$c" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' 2>/dev/null; then
+    PY="$c"; break
+  fi
+done
+
+if [ -z "$PY" ]; then
+  echo "HASHCRACK: python3 (>= 3.8) is required but was not found." >&2
+  echo "  install:  sudo apt install python3" >&2
+  echo "  optional: sudo apt install python3-bcrypt python3-passlib p7zip-full" >&2
+  [ -t 0 ] && { printf '\nPress Enter to close...'; read -r _; }
+  exit 1
+fi
+
+if [ -n "${APPIMAGE:-}" ]; then
+  export HASHCRACK_HOME="$HERE/usr/share/hashcrack"
+fi
+"$PY" "$HERE/usr/share/hashcrack/hashcrack.py" "$@"
+status=$?
+
+if [ "${HASHCRACK_PAUSE:-0}" = "1" ] && [ -t 0 ]; then
+  printf '\nPress Enter to close...'
+  read -r _ || true
+fi
+exit $status

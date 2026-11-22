@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 #  hashcrack - installer for Kali / Debian / Ubuntu / Parrot
+#  Installs: the `hashcrack` command, desktop entry + icon
 #  Usage:  sudo bash install-linux.sh
 # ============================================================
 set -u
@@ -75,7 +76,7 @@ else
   ok "bcrypt & passlib ready"
 fi
 
-# 4. install the tool
+# 4. install the tool (program + launcher + desktop entry + icon)
 step "Installing hashcrack"
 SRC="$(cd "$(dirname "$0")" && pwd)"
 if [ ! -f "$SRC/hashcrack.py" ]; then
@@ -84,19 +85,59 @@ if [ ! -f "$SRC/hashcrack.py" ]; then
 fi
 
 if [ -w /usr/local/bin ] 2>/dev/null || [ "$(id -u)" = "0" ]; then
-  cp "$SRC/hashcrack.py" /usr/local/bin/hashcrack
-  chmod +x /usr/local/bin/hashcrack
-  ok "installed as system command: hashcrack"
+  BIN=/usr/local/bin
+  SHARE=/usr/share
+  ICONDIR=/usr/share/icons/hicolor/256x256/apps
+  APPDIR=/usr/share/applications
 else
-  mkdir -p "$HOME/.local/bin"
-  cp "$SRC/hashcrack.py" "$HOME/.local/bin/hashcrack"
-  chmod +x "$HOME/.local/bin/hashcrack"
-  case ":$PATH:" in
-    *":$HOME/.local/bin:"*) ;;
-    *) warn "add to PATH: echo 'export PATH=\$HOME/.local/bin:\$PATH' >> ~/.bashrc" ;;
-  esac
-  ok "installed to ~/.local/bin/hashcrack"
+  BIN="$HOME/.local/bin"
+  SHARE="$HOME/.local/share"
+  ICONDIR="$HOME/.local/share/icons/hicolor/256x256/apps"
+  APPDIR="$HOME/.local/share/applications"
 fi
+
+mkdir -p "$BIN" "$SHARE/hashcrack" "$ICONDIR" "$APPDIR"
+cp "$SRC/hashcrack.py" "$SHARE/hashcrack/hashcrack.py"
+chmod +x "$SHARE/hashcrack/hashcrack.py"
+
+# launcher (keeps terminal open when started from a desktop icon)
+if [ -f "$SRC/hashcrack.sh" ]; then
+  cp "$SRC/hashcrack.sh" "$BIN/hashcrack"
+else
+  cat > "$BIN/hashcrack" <<'LAUNCH'
+#!/usr/bin/env bash
+set -u
+for base in /usr/share/hashcrack "$HOME/.local/share/hashcrack"; do
+  [ -f "$base/hashcrack.py" ] && exec python3 "$base/hashcrack.py" "$@"
+done
+self_dir="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+[ -f "$self_dir/hashcrack.py" ] && exec python3 "$self_dir/hashcrack.py" "$@"
+echo "hashcrack: hashcrack.py not found. Re-install: sudo bash install-linux.sh" >&2
+[ -t 0 ] && { printf '\nPress Enter to close...'; read -r _; }
+exit 1
+LAUNCH
+fi
+chmod +x "$BIN/hashcrack"
+ok "command installed: hashcrack"
+
+# desktop entry + icon (double-click opens a terminal running HASHCRACK)
+cp "$SRC/hashcrack.py" /dev/null 2>/dev/null || true
+if [ -f "$SRC/packaging/hashcrack.desktop" ]; then
+  sed -e "s|^Icon=.*|Icon=hashcrack|" \
+      -e "s|^Exec=.*|Exec=env HASHCRACK_PAUSE=1 $BIN/hashcrack|" \
+      -e "s|^TryExec=.*|TryExec=$BIN/hashcrack|" \
+      "$SRC/packaging/hashcrack.desktop" > "$APPDIR/hashcrack.desktop"
+  chmod 644 "$APPDIR/hashcrack.desktop"
+fi
+if [ -f "$SRC/assets/icon-256.png" ]; then
+  cp "$SRC/assets/icon-256.png" "$ICONDIR/hashcrack.png"
+elif [ -f "$SRC/hashcrack.png" ]; then
+  cp "$SRC/hashcrack.png" "$ICONDIR/hashcrack.png"
+fi
+command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database -q "$APPDIR" 2>/dev/null
+command -v gtk-update-icon-cache   >/dev/null 2>&1 && gtk-update-icon-cache -qtf "$(
+  [ -d /usr/share/icons/hicolor ] && echo /usr/share/icons/hicolor || echo "$HOME/.local/share/icons/hicolor")" 2>/dev/null
+ok "menu entry + icon installed (app launcher: HASHCRACK)"
 
 # 5. wordlist folder
 step "Preparing ~/wordlists"
@@ -109,7 +150,8 @@ say ""
 say "${C}  ---------------------------------------------${R}"
 say "${G}${B}  Done!${R}"
 say ""
-say "  Run:        ${C}${B}hashcrack${R}"
+say "  Terminal:   ${C}${B}hashcrack${R}"
+say "  App menu:   ${B}HASHCRACK${R} (opens a terminal window automatically)"
 say "  Test:       hashcrack --identify -H '<hash>'"
 say "  Crack:      hashcrack -H <hash> -w wordlist.txt"
 say ""

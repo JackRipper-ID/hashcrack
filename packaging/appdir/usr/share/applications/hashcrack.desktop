@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=HASHCRACK
+GenericName=Hash Cracker
+Comment=Animated local hash cracker (CPU-only) by JackRipper-ID
+Exec=env HASHCRACK_PAUSE=1 /usr/local/bin/hashcrack
+TryExec=/usr/local/bin/hashcrack
+Icon=hashcrack
+Terminal=true
+Categories=Utility;
+Keywords=hash;crack;password;security;pentest;bcrypt;md5;sha;
+StartupNotify=false
