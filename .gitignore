@@ -2,3 +2,10 @@ top1m.txt
 wordlist-*
 __pycache__/
 *.pyc
+.venv/
+.venv-*/
+venv/
+.pytest_cache/
+build/
+dist/
+*.egg-info/

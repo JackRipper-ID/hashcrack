@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hashcrack"
+version = "1.1.0"
+description = "Local hash / zip cracker (CPU-only) with an animated TUI"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "JackRipper-ID" }]
+keywords = ["hash", "cracker", "ctf", "pentest", "wordlist", "zip"]
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Information Technology",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Android",
+    "Programming Language :: Python :: 3",
+    "Topic :: Security",
+]
+
+[project.optional-dependencies]
+extra = ["passlib", "bcrypt"]
+dev = ["pytest"]
+
+[project.scripts]
+hashcrack = "hashcrack:main"
+
+[project.urls]
+Homepage = "https://github.com/JackRipper-ID/hashcrack"
+
+[tool.setuptools]
+py-modules = ["hashcrack"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"

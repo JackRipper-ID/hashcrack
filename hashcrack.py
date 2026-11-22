@@ -43,10 +43,9 @@ Anda sendiri atau sistem yang Anda punya izin mengujinya.
 """
 
 import argparse
-import base64
-import binascii
 import hashlib
 import itertools
+import json
 import math
 import multiprocessing as mp
 import os
@@ -56,7 +55,6 @@ import subprocess
 import sys
 import threading
 import time
-import zlib
 from collections import deque
 
 # ══════════════════════════ kompatibilitas ══════════════════════════
@@ -119,6 +117,16 @@ def _stdout_tty():
         return False
 
 
+_JSON_MODE = False      # --json: stdout hanya untuk JSON, chatter ke stderr
+
+
+def _say(*args, **kw):
+    """print() yang tetap aman saat stdout dipakai untuk JSON."""
+    if _JSON_MODE:
+        kw["file"] = sys.stderr
+    print(*args, **kw)
+
+
 _NO_COLOR = bool(os.environ.get("NO_COLOR")) or not _stdout_tty()
 
 
@@ -151,7 +159,7 @@ def tw():
 
 def rule(ch="─", color=GREY, width=None):
     w = width or min(tw(), 78)
-    print(f"{color}{ch * w}{RESET}")
+    _say(f"{color}{ch * w}{RESET}")
 
 
 def banner():
@@ -165,10 +173,10 @@ def banner():
         "  ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝",
     ]
     if w >= 76:
-        print()
+        _say()
         grad = [51, 45, 39, 33, 27, 21]
         for i, line in enumerate(art):
-            print(f"{_fg(grad[i])}{line}{RESET}")
+            _say(f"{_fg(grad[i])}{line}{RESET}")
         env = " · termux" if IS_TERMX else (" · android" if IS_ANDROID else "")
         boosted = ""
         if IS_ANDROID and os.getuid() == 0:
@@ -179,30 +187,30 @@ def banner():
                     boosted = " · boost"
             except Exception:
                 pass
-        print(f"{GREY}{'local · CPU-only · ' + str(cpu_count()) + ' core'
+        _say(f"{GREY}{'local · CPU-only · ' + str(cpu_count()) + ' core'
               + env + boosted:^{w}}{RESET}")
-        print(f"{GREY}{'by JackRipper-ID':^{w}}{RESET}")
+        _say(f"{GREY}{'by JackRipper-ID':^{w}}{RESET}")
     else:
-        print(f"\n{CYAN}{BOLD}  ⚡ HASHCRACK{RESET}  "
+        _say(f"\n{CYAN}{BOLD}  ⚡ HASHCRACK{RESET}  "
               f"{GREY}local · CPU-only · by JackRipper-ID{RESET}")
-    print()
+    _say()
 
 
 def header(title, sub=""):
-    print()
+    _say()
     rule("─", BLUE)
-    print(f"{BOLD}{CYAN}  {title}{RESET}")
+    _say(f"{BOLD}{CYAN}  {title}{RESET}")
     if sub:
-        print(f"{GREY}  {sub}{RESET}")
+        _say(f"{GREY}  {sub}{RESET}")
     rule("─", BLUE)
 
 
-def ok(msg):    print(f"{GREEN}  ✔ {msg}{RESET}")
-def warn(msg):  print(f"{YELLOW}  ! {msg}{RESET}")
-def err(msg):   print(f"{RED}  ✘ {msg}{RESET}")
-def info(msg):  print(f"{BLUE}  › {msg}{RESET}")
+def ok(msg):    _say(f"{GREEN}  ✔ {msg}{RESET}")
+def warn(msg):  _say(f"{YELLOW}  ! {msg}{RESET}")
+def err(msg):   _say(f"{RED}  ✘ {msg}{RESET}")
+def info(msg):  _say(f"{BLUE}  › {msg}{RESET}")
 def kv(k, v, color=RESET):
-    print(f"  {GREY}{k:<14}{RESET}{color}{v}{RESET}")
+    _say(f"  {GREY}{k:<14}{RESET}{color}{v}{RESET}")
 
 
 # ══════════════════════════ md4 fallback (NTLM/LM) ══════════════════════════
@@ -265,7 +273,7 @@ def md4_digest(data):
 
 HEX_LEN = {
     8: ["crc32"],
-    16: ["mysql323", "des_crypt"],
+    16: ["mysql323", "oracle10"],
     32: ["md5", "ntlm", "lm", "msdcc", "htdigest", "oracle11", "oracle10"],
     40: ["sha1", "ripemd160"],
     41: ["mysql41"],
@@ -285,6 +293,61 @@ SIMPLE_ALGOS = {"md5", "sha1", "sha224", "sha256", "sha384", "sha512",
 # Algoritma yang butuh nama user tambahan
 NEEDS_USER = {"msdcc", "msdcc2", "oracle10", "htdigest", "postgres_md5", "cisco_asa"}
 
+# Algoritma yang diverifikasi lewat passlib (modul opsional)
+PASSLIB_ALGOS = {
+    "mysql323", "lm", "msdcc", "msdcc2", "oracle10", "oracle11", "htdigest",
+    "mssql2000", "mssql2005", "crc32", "des_crypt", "crypt16", "bsdi_crypt",
+    "md5_crypt", "apr_md5_crypt", "sha256_crypt", "sha512_crypt", "sha1_crypt",
+    "sun_md5_crypt", "phpass", "pbkdf2_sha1", "pbkdf2_sha256", "pbkdf2_sha512",
+    "bcrypt_sha256", "scram", "bsd_nthash", "dlitz_pbkdf2_sha1",
+    "atlassian_pbkdf2_sha1", "ldap_salted_sha1", "fshp",
+    "grub_pbkdf2_sha512", "django_pbkdf2_sha256", "django_pbkdf2_sha1",
+}
+
+
+class CrackerError(RuntimeError):
+    """Kesalahan yang harus ditampilkan rapi ke pengguna (bukan traceback)."""
+
+
+def have_module(name):
+    """True bila modul opsional benar-benar bisa diimpor sekarang."""
+    try:
+        __import__(name)
+        return True
+    except Exception:
+        return False
+
+
+def check_algos(algos):
+    """
+    Pisahkan algoritma menjadi (bisa_jalan, [(algo, alasan)]) berdasarkan
+    modul opsional yang terpasang. Tanpa ini, algoritma yang butuh passlib
+    hanya menghasilkan "NOT FOUND" palsu (atau, lebih buruk, worker yang
+    mati saat inisialisasi dan di-respawn tanpa henti).
+    """
+    have_passlib = have_module("passlib")
+    have_bcrypt = have_module("bcrypt")
+    runnable, skipped = [], []
+    for a in (algos if isinstance(algos, (list, tuple, set)) else [algos]):
+        if not isinstance(a, str):
+            runnable.append(a)
+        elif a.startswith("bcrypt") and not have_bcrypt:
+            skipped.append((a, "pip install bcrypt"))
+        elif a in PASSLIB_ALGOS and not have_passlib:
+            skipped.append((a, "pip install passlib"))
+        else:
+            runnable.append(a)
+    return runnable, skipped
+
+
+def known_algos():
+    """Nama algorithm yang benar-benar dikenali _verify_hex / _digest_for."""
+    return (SIMPLE_ALGOS | NEEDS_USER | PASSLIB_ALGOS | set(ALGO_NOTE) | {
+        "md4", "sha3_224", "sha3_256", "sha3_384", "sha3_512",
+        "crypt16", "des_crypt", "bsdi_crypt", "mysql41", "md5_crypt",
+        "apr_md5_crypt", "sha256_crypt", "sha512_crypt", "sha1_crypt",
+    })
+
 
 def detect_kind(h):
     """
@@ -300,11 +363,21 @@ def detect_kind(h):
     if os.path.isfile(h) and h.lower().endswith(".zip"):
         return "zip", "zip", h
 
-    # ── mysql323 (16 hex, dua bagian 8 hex) ──
-    if re.fullmatch(r"[0-9A-Fa-f]{16}", h):
-        return "hex", "mysql323", None
+    # ── postgres: "md5" + 32 hex (username tidak ada di string, minta terpisah) ──
+    if re.fullmatch(r"md5[0-9A-Fa-f]{32}", h):
+        return "hex", "postgres_md5", None
 
-    # ── mysql41 (* + 40 hex) ──
+    # ── mysql323 / oracle10 (16 hex) — butuh username untuk oracle10 ──
+    if re.fullmatch(r"[0-9A-Fa-f]{16}", h):
+        return "hex_multi", ["mysql323", "oracle10"], None
+
+    # ── oracle11: "S:" + 60 hex (30 byte) — tanpa pola ini "unknown" ──
+    if re.fullmatch(r"S:[0-9A-Fa-f]{60}", h):
+        return "hex", "oracle11", None
+
+    # ── mysql41 WAJIB berawalan "*" ──
+    # (tanpa bintang, 40 hex hanyalah sha1/ripemd160 — dulu pola ini menelan
+    #  digest uppercase dan mengirimnya ke verifier crypt yang salah)
     if re.fullmatch(r"\*[0-9A-F]{40}", h):
         return "hex", "mysql41", None
 
@@ -335,16 +408,10 @@ def detect_kind(h):
         (r"^sha1\$", "sha1_crypt"),
         (r"^_[0-9A-Za-z./]{19}$", "bsdi_crypt"),
         (r"^[0-9A-Za-z./]{24}$", "crypt16"),
-        (r"^\*?[0-9A-F]{40}$", "mysql41"),
     ]
     for pat, name in CRYPT_MAP:
         if re.match(pat, h):
             return "crypt", name, None
-
-    # ── postgres: "md5" + 32 hex ──
-    m = re.fullmatch(r"md5([0-9A-Fa-f]{32})", h)
-    if m:
-        return "hex", "postgres_md5", m.group(1)
 
     # ── mssql: 0x + 92 hex (2000/2005 tak bisa dibedakan tanpa verifikasi) ──
     if re.fullmatch(r"0x[0-9A-Fa-f]{92}", h):
@@ -402,110 +469,221 @@ def _digest_for(algo, cand):
 
 _target = _kind = _algo = _verifier = _counter = _extra = None
 _algos = None          # candidate list for hex_multi
+_init_error = None     # pesan bila worker gagal menyiapkan verifier
+WORKER_ERROR = "\x00worker-error"
+
+
+def _bump(counter, n):
+    """Naikkan counter lintas-proses secara atomik (nilai += n tidak atomik)."""
+    if counter is None or not n:
+        return
+    try:
+        with counter.get_lock():
+            counter.value += n
+    except (AttributeError, ValueError):
+        counter.value += n
 
 
 def _init_worker(target, kind, algo, counter, extra=None):
     global _target, _kind, _algo, _verifier, _counter, _extra, _algos
+    global _init_error
     _target, _kind, _algo, _counter, _extra = target, kind, algo, counter, extra
     _algos = algo if isinstance(algo, list) else [algo]
     _verifier = None
-    if kind == "crypt":
-        bc = next((a for a in _algos if a.startswith("bcrypt")), None)
-        if bc:
-            import bcrypt as _b
-            tgt = target
-            if tgt.startswith("$2y$") or tgt.startswith("$2x$"):
-                tgt = "$2b$" + tgt[4:]
-            _verifier = ("bcrypt", _b, tgt.encode())
-        else:
-            import passlib.hash as ph
-            _verifier = ("passlib", ph, target)
+    _init_error = None
+    try:
+        _verifier = _make_verifier(kind, target, _algos)
+    except Exception as e:      # jangan biarkan Pool me-respawn worker selamanya
+        _init_error = f"{type(e).__name__}: {e}"
+
+
+def _make_verifier(kind, target, algos):
+    """Siapkan verifier crypt sekali per proses (bcrypt / passlib)."""
+    if kind != "crypt":
+        return None
+    bc = next((a for a in algos if a.startswith("bcrypt")), None)
+    if bc:
+        import bcrypt as _b
+        tgt = target
+        if tgt.startswith("$2y$") or tgt.startswith("$2x$"):
+            tgt = "$2b$" + tgt[4:]
+        return ("bcrypt", _b, tgt.encode())
+    import passlib.hash as ph
+    return ("passlib", ph, target)
+
+
+def _verify_hex(target, algo, extra, cand):
+    """True bila `cand` menghasilkan `target` untuk algorithm hex tertentu."""
+    tgt = target.lower()
+    if tgt.startswith("0x"):
+        tgt = tgt[2:]
+    if algo == "postgres_md5":
+        # postgres menyimpan md5(password || username); username datang dari
+        # --user (dulu fungsi ini memakai potongan hash sebagai "username",
+        # sehingga hash postgres tidak pernah bisa ketemu)
+        if tgt.startswith("md5") and len(tgt) == 35:
+            tgt = tgt[3:]
+        return hashlib.md5((cand + (extra or "postgres")).encode()).hexdigest() == tgt
+    if algo == "htdigest":
+        import passlib.hash as ph
+        try:
+            return bool(ph.htdigest.verify(cand, target, user=extra or "user",
+                                           realm=extra or "realm"))
+        except Exception:
+            return False
+    if algo in ("mssql2000", "mssql2005", "crc32", "des_crypt", "crypt16",
+                "bsdi_crypt", "msdcc", "msdcc2", "oracle10", "oracle11",
+                "cisco_asa"):
+        import passlib.hash as ph
+        obj = getattr(ph, algo, None)
+        if obj is None:
+            return False
+        try:
+            if algo == "crc32":
+                return obj.hash(cand).lower() == tgt
+            if algo in NEEDS_USER:
+                return bool(obj.verify(cand, target, user=extra or "user"))
+            return bool(obj.verify(cand, target))
+        except Exception:
+            return False
+    try:
+        return _digest_for(algo, cand).lower() == tgt
+    except Exception:
+        return False
+
+
+def _verify_crypt(target, algo, extra, cand, verifier):
+    if verifier is None:
+        return False
+    which, obj, tgt = verifier
+    try:
+        if which == "bcrypt":
+            return bool(obj.checkpw(cand.encode("utf-8", "surrogatepass"), tgt))
+        real = {"md5crypt": "md5_crypt", "sha256crypt": "sha256_crypt",
+                "sha512crypt": "sha512_crypt"}.get(algo, algo)
+        hobj = getattr(obj, real, None)
+        if hobj is None:
+            return False
+        if real == "htdigest":
+            return bool(hobj.verify(cand, tgt, user=extra or "user",
+                                    realm=extra or "realm"))
+        if real in NEEDS_USER:
+            return bool(hobj.verify(cand, tgt, user=extra or "user"))
+        return bool(hobj.verify(cand, tgt))
+    except Exception:
+        return False
+
+
+def _verify(target, kind, algos, extra, cand, verifier=None):
+    """Return nama algorithm yang cocok untuk `cand`, atau None."""
+    for algo in algos:
+        if kind == "crypt":
+            if _verify_crypt(target, algo, extra, cand, verifier):
+                return algo
+        elif _verify_hex(target, algo, extra, cand):
+            return algo
+    return None
 
 
 def _check_with(cand, algo):
     """Sama seperti _check tapi terhadap satu algorithm tertentu."""
-    global _algo
-    if _kind == "hex_multi":
-        # uji hex dengan algorithm bergantian
-        old = _algo
-        _algo = algo
-        try:
-            return _check(cand)
-        finally:
-            _algo = old
-    return _check(cand)
+    return _verify(_target, _kind, [algo], _extra, cand, _verifier) is not None
 
 
 def _check(cand):
-    if _kind in ("hex", "hex_multi"):
-        tgt = _target.lower().removeprefix("0x")
-        if tgt.startswith("md5"):
-            tgt = tgt[3:]
-        if _algo in NEEDS_USER:
-            import passlib.hash as ph
-            obj = getattr(ph, _algo, None)
-            if obj is None:
-                return False
-            try:
-                if _algo == "htdigest":
-                    return obj.verify(cand, _target, user=_extra or "user",
-                                      realm=_extra or "realm")
-                if _algo == "postgres_md5":
-                    return hashlib.md5((cand + (_extra or "postgres")).encode()).hexdigest() == tgt
-                return obj.verify(cand, _target, user=_extra or "user")
-            except Exception:
-                return False
-        if _algo in ("mssql2000", "mssql2005"):
-            import passlib.hash as ph
-            try:
-                return getattr(ph, _algo).verify(cand, _target)
-            except Exception:
-                return False
-        if _algo in ("crc32", "des_crypt", "crypt16", "bsdi_crypt"):
-            import passlib.hash as ph
-            try:
-                obj = getattr(ph, _algo)
-                if _algo == "crc32":
-                    return obj.hash(cand).lower() == tgt
-                return obj.verify(cand, _target)
-            except Exception:
-                return False
-        try:
-            return _digest_for(_algo, cand).lower() == tgt
-        except Exception:
-            return False
-    if _kind == "crypt":
-        which, obj, tgt = _verifier
-        try:
-            if which == "bcrypt":
-                return obj.checkpw(cand.encode("utf-8", "surrogatepass"), tgt)
-            real = {"md5crypt": "md5_crypt", "sha256crypt": "sha256_crypt",
-                    "sha512crypt": "sha512_crypt"}.get(_algo, _algo)
-            hobj = getattr(obj, real, None)
-            if hobj is None:
-                return False
-            if real == "htdigest":
-                return hobj.verify(cand, tgt, user=_extra or "user",
-                                   realm=_extra or "realm")
-            if real in NEEDS_USER:
-                return hobj.verify(cand, tgt, user=_extra or "user")
-            return hobj.verify(cand, tgt)
-        except Exception:
-            return False
-    return False
+    return _verify(_target, _kind, _algos, _extra, cand, _verifier) is not None
 
 
 def worker_chunk(candidates):
     """Return (candidate, algo) if matched, else None."""
+    if _init_error:
+        return (WORKER_ERROR, _init_error)
     checked = 0
     for cand in candidates:
         checked += 1
-        for algo in _algos:
-            if _check_with(cand, algo):
-                _counter.value += checked
-                return cand, algo
-    _counter.value += checked
+        hit = _verify(_target, _kind, _algos, _extra, cand, _verifier)
+        if hit:
+            _bump(_counter, checked)
+            return cand, hit
+    _bump(_counter, checked)
     return None
+
+
+# ── banyak hash sekaligus (--hash-file): satu pass atas seluruh keyspace ──
+
+_TARGETS = None
+
+
+def _init_multi(targets, counter):
+    global _TARGETS, _counter, _init_error
+    _TARGETS, _counter = targets, counter
+    _init_error = None
+    try:
+        for t in targets:
+            t["verifier"] = _make_verifier(t["kind"], t["target"], t["algos"])
+    except Exception as e:
+        _init_error = f"{type(e).__name__}: {e}"
+
+
+def _multi_worker(chunk):
+    """Return [(index, candidate, algo), ...] untuk semua target yang kena."""
+    if _init_error:
+        return [(WORKER_ERROR, None, _init_error)]
+    hits = []
+    checked = 0
+    for cand in chunk:
+        checked += 1
+        for idx, t in enumerate(_TARGETS):
+            hit = _verify(t["target"], t["kind"], t["algos"], t.get("extra"),
+                          cand, t.get("verifier"))
+            if hit:
+                hits.append((idx, cand, hit))
+    _bump(_counter, checked)
+    return hits
+
+
+def run_multi(targets, stream, workers, chunk_size, panel=None):
+    """
+    Pecahkan sekumpulan hash dalam satu pass. Return dict:
+      {index: (password, algo)} untuk yang ketemu.
+    """
+    if workers < 1:
+        raise CrackerError("jumlah core minimal 1")
+    if chunk_size < 1:
+        raise CrackerError("ukuran chunk minimal 1")
+    t0 = time.time()
+    ctx = mp.get_context(_CTX_NAME)
+    counter = ctx.Value("L", 0)
+    pool = ctx.Pool(workers, initializer=_init_multi,
+                    initargs=(targets, counter))
+    found, err_msg = {}, None
+    if panel is not None:
+        panel.begin(counter, t0)
+    try:
+        for res in pool.imap_unordered(_multi_worker, chunks(stream, chunk_size)):
+            for idx, cand, algo in res:
+                if idx == WORKER_ERROR:
+                    err_msg = algo
+                    break
+                found.setdefault(idx, (cand, algo))
+            if err_msg or len(found) == len(targets):
+                break
+    except KeyboardInterrupt:
+        pool.terminate()
+        if panel is not None:
+            panel.end()
+        raise
+    finally:
+        if found or err_msg:
+            pool.terminate()
+        else:
+            pool.close()
+        pool.join()
+    if panel is not None:
+        panel.end()
+    if err_msg:
+        raise CrackerError(err_msg)
+    return found, counter.value, time.time() - t0
 
 
 # ══════════════════════════ candidate generators ══════════════════════════
@@ -517,10 +695,16 @@ SUFFIXES = ("", "1", "12", "123", "1234", "12345", "0", "00", "007",
 
 
 def apply_rules(word):
-    base = {word, word.lower(), word.upper(), word.capitalize()}
-    base |= {v.translate(LEET) for v in base}
+    """Mutasi satu kata. Urutan tetap (bukan urutan set) supaya percobaan yang
+    sama menghasilkan urutan kandidat yang sama di setiap proses."""
+    variants, seen = [], set()
+    for v in (word, word.lower(), word.upper(), word.capitalize()):
+        for cand in (v, v.translate(LEET)):
+            if cand not in seen:
+                seen.add(cand)
+                variants.append(cand)
     out, dedup = [], set()
-    for v in base:
+    for v in variants:
         for suf in SUFFIXES:
             c = v + suf
             if c not in dedup:
@@ -558,6 +742,38 @@ def gen_combo(path1, path2, limit=200000):
                 count += 1
                 if count >= limit:
                     return
+
+
+def count_candidates(path):
+    """Jumlah baris yang benar-benar dipakai gen_wordlist (baris kosong dilewati)."""
+    n = 0
+    with open(path, "rb") as f:
+        for line in f:
+            if line.strip():
+                n += 1
+    return n
+
+
+def estimate_rules_total(path, sample=200):
+    """
+    Perkiraan jumlah kandidat mode -r: setiap kata bisa menghasilkan jumlah
+    mutasi yang berbeda (duplikat dibuang per kata), jadi ukur rata-rata dari
+    sampel pertama alih-alih mengalikan dengan satu angka tetap.
+    """
+    total, words = 0, 0
+    with open(path, "r", encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            w = line.rstrip("\r\n")
+            if not w:
+                continue
+            total += len(apply_rules(w))
+            words += 1
+            if words >= sample:
+                break
+    if not words:
+        return 0
+    per_word = total / words
+    return int(count_candidates(path) * per_word)
 
 
 MASK_SETS = {
@@ -770,6 +986,10 @@ def _strip(s):
 
 def run(target, kind, algo, stream, total_hint, workers, chunk_size,
         panel=None, detail="", extra=None):
+    if workers < 1:
+        raise CrackerError("jumlah core minimal 1")
+    if chunk_size < 1:
+        raise CrackerError("ukuran chunk minimal 1")
     t0 = time.time()
     ctx = mp.get_context(_CTX_NAME)
     counter = ctx.Value("L", 0)
@@ -777,24 +997,36 @@ def run(target, kind, algo, stream, total_hint, workers, chunk_size,
                     initargs=(target, kind, algo, counter, extra))
     found = None
     hit_algo = None
+    err_msg = None
     if panel is not None:
         panel.detail = detail
         panel.begin(counter, t0)
     try:
         for res in pool.imap_unordered(worker_chunk, chunks(stream, chunk_size)):
-            if res is not None:
-                found, hit_algo = res
+            if res is None:
+                continue
+            if res[0] == WORKER_ERROR:
+                err_msg = res[1]
                 break
+            found, hit_algo = res
+            break
     except KeyboardInterrupt:
         pool.terminate()
         if panel is not None:
             panel.end()
         raise
     finally:
-        pool.close()
+        # hit / error: buang chunk yang masih antre supaya tidak menunggu
+        # verifier lambat (bcrypt/pbkdf2) selesai setelah jawaban ketemu
+        if found is not None or err_msg is not None:
+            pool.terminate()
+        else:
+            pool.close()
         pool.join()
     if panel is not None:
         panel.end()
+    if err_msg is not None:
+        raise CrackerError(err_msg)
     elapsed = time.time() - t0
     hit = hit_algo if found is not None else algo
     return found, counter.value, elapsed, hit
@@ -911,11 +1143,19 @@ def ensure_deps():
 
 # ══════════════════════════ mode interaktif ══════════════════════════
 
+_EOF = False    # stdin sudah habis (pipa / /dev/null / cron)
+
+
 def ask(prompt, default=""):
     d = f" {GREY}[{default}]{RESET}" if default else ""
     try:
         v = input(f"{CYAN}  ? {RESET}{prompt}{d}: ").strip()
-    except (EOFError, KeyboardInterrupt):
+    except EOFError:
+        # stdin habis (dipipe, /dev/null, cron): jangan berputar di menu
+        global _EOF
+        _EOF = True
+        return default
+    except KeyboardInterrupt:
         return default
     return v or default
 
@@ -1110,6 +1350,8 @@ def build_mask_interactive():
     print(f"  {GREY}Codes: {RESET}?l ?u ?d ?s ?a ?h ?H  {GREY}example: ?l?l?l?d?d{RESET}")
     while True:
         m = ask("mask")
+        if _EOF:
+            return ""
         if m and mask_size(m) > 1:
             info(f"{fmt_num(mask_size(m))} possibilities")
             return m
@@ -1139,6 +1381,8 @@ def pick_wordlist():
     if choice == "__manual__":
         while True:
             p = ask("file path")
+            if _EOF:
+                return ""
             if os.path.isfile(p):
                 return p
             err("file not found")
@@ -1204,11 +1448,19 @@ def crack_mode():
             kind = "hex_multi"     # tetap multi, worker akan menguji semua
         else:
             kind = "hex"
-        if isinstance(algo, str) and algo in ("oracle10", "htdigest", "msdcc",
-                                               "msdcc2", "postgres_md5"):
-            extra = ask(f"username/realm for {algo}", "user")
-    elif kind == "hex" and algo in ("oracle10", "htdigest", "msdcc", "msdcc2"):
-        extra = ask(f"username/realm for {algo}", "user")
+        if isinstance(algo, str) and algo in (NEEDS_USER):
+            extra = ask(f"username/realm for {algo}",
+                        "postgres" if algo == "postgres_md5" else "user")
+    elif kind == "hex" and algo in NEEDS_USER:
+        extra = ask(f"username/realm for {algo}",
+                    "postgres" if algo == "postgres_md5" else "user")
+
+    try:
+        algo, kind = _apply_availability(algo, kind)
+    except CrackerError as e:
+        err(str(e))
+        print()
+        return None
 
     print()
     kv("algorithm", ", ".join(algo) if isinstance(algo, list) else algo, GREEN)
@@ -1234,15 +1486,16 @@ def crack_mode():
             return None
         rules = method == 2
         try:
-            with open(path, "rb") as f:
-                lines = sum(1 for _ in f)
+            lines = count_candidates(path)
         except OSError:
             lines = 0
-        total_hint = lines * (len(apply_rules("abc")) if rules else 1)
+        total_hint = estimate_rules_total(path) if rules else lines
         info(f"wordlist: {path}  {GREY}({fmt_num(lines)} baris){RESET}")
         stream = gen_wordlist(path, rules)
     elif method == 3:
         mask = build_mask_interactive()
+        if not mask or mask_size(mask) < 2:
+            return None
         total_hint = mask_size(mask)
         stream = gen_mask(mask)
     elif method == 4:
@@ -1291,6 +1544,10 @@ def crack_mode():
         print("\r\033[K")
         warn("stopped by user")
         return None
+    except CrackerError as e:
+        err(str(e))
+        print()
+        return None
     return 0 if show_result(found, done, elapsed, h, hit_algo) else 1
 
 
@@ -1333,11 +1590,9 @@ def _zip_worker(chunk):
     for pw in chunk:
         checked += 1
         if _zip_try(pw):
-            if _zip_counter is not None:
-                _zip_counter.value += checked
+            _bump(_zip_counter, checked)
             return pw
-    if _zip_counter is not None:
-        _zip_counter.value += checked
+    _bump(_zip_counter, checked)
     return None
 
 
@@ -1375,9 +1630,11 @@ def crack_zip(path):
     total_hint = None
     if mode == "1":
         path_w = pick_wordlist()
-        total_hint = sum(1 for _ in open(path_w, "rb"))
-        stream = (l.rstrip("\r\n") for l in
-                  open(path_w, encoding="utf-8", errors="ignore"))
+        if not os.path.isfile(path_w):
+            err("wordlist not found")
+            return None
+        total_hint = count_candidates(path_w)
+        stream = gen_wordlist(path_w)
     elif mode == "2":
         mask = build_mask_interactive()
         total_hint = mask_size(mask)
@@ -1439,6 +1696,9 @@ def interactive():
         print(f"   {CYAN}0{RESET}. exit")
         print()
         ch = ask("choose", "1")
+        if _EOF:
+            print(f"\n  {GREY}stdin closed - exiting.{RESET}\n")
+            return 0
         if ch == "0":
             print(f"\n  {GREY}done.{RESET}\n")
             return 0
@@ -1459,136 +1719,328 @@ def interactive():
 
 # ══════════════════════════ CLI ══════════════════════════
 
-def main():
+VERSION = "1.1.0"
+
+
+def _int_arg(label, lo=None, hi=None):
+    def conv(text):
+        try:
+            n = int(str(text).strip())
+        except (TypeError, ValueError):
+            raise argparse.ArgumentTypeError(f"{label}: not a number: {text!r}")
+        if lo is not None and n < lo:
+            raise argparse.ArgumentTypeError(f"{label}: must be >= {lo}")
+        if hi is not None and n > hi:
+            raise argparse.ArgumentTypeError(f"{label}: must be <= {hi}")
+        return n
+    return conv
+
+
+def _threads_arg(text):
+    n = _int_arg("--threads", 1)(text)
+    cap = max(1, cpu_count() * 4)
+    if n > cap:
+        raise argparse.ArgumentTypeError(
+            f"--threads: max {cap} ({cpu_count()} cores x 4)")
+    return n
+
+
+def _build_parser():
     ap = argparse.ArgumentParser(
+        prog="hashcrack.py",
         description="Local hash / zip cracker (CPU-only). No arguments = interactive menu.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=("Mask codes: ?l ?u ?d ?s ?a ?h ?H\n"
                 "Contoh: --mask '?l?l?l?d?d'  |  -w rockyou.txt -r\n"
+                "Batch:  --hash-file hashes.txt -w rockyou.txt --json\n"
+                "Exit:   0 = found, 1 = not found, 2 = usage/input error\n"
                 "Termux: pkg install python && pip install bcrypt passlib"))
     ap.add_argument("-H", "--hash", help="hash target atau file path zip")
+    ap.add_argument("--hash-file", metavar="FILE",
+                    help="file dengan satu hash per baris (satu pass untuk semua)")
     src = ap.add_mutually_exclusive_group()
     src.add_argument("-w", "--wordlist", help="file wordlist")
     src.add_argument("--mask", help="mask brute-force")
-    src.add_argument("--digits", type=int, metavar="N", help="digits 0..N digit")
+    src.add_argument("--digits", type=_int_arg("--digits", 1, 10), metavar="N",
+                     help="digits 0..N digit (1..10)")
     src.add_argument("--literal", help="test words, comma-separated")
     src.add_argument("--combo", nargs=2, metavar=("W1", "W2"),
                      help="combo dua wordlist")
     ap.add_argument("-r", "--rules", action="store_true", help="mutasi aturan")
-    ap.add_argument("-t", "--threads", type=int, default=cpu_count())
-    ap.add_argument("-c", "--chunk", type=int, default=None)
+    ap.add_argument("-t", "--threads", type=_threads_arg, default=cpu_count(),
+                    help="jumlah proses (default: semua core)")
+    ap.add_argument("-c", "--chunk", type=_int_arg("--chunk", 1, 1000000),
+                    default=None, help="kandidat per chunk")
     ap.add_argument("-q", "--quiet", action="store_true")
     ap.add_argument("-i", "--identify", action="store_true",
                     help="identify hash type only")
+    ap.add_argument("--json", action="store_true",
+                    help="hasil sebagai satu objek JSON di stdout (untuk skrip)")
     ap.add_argument("--no-banner", action="store_true")
     ap.add_argument("--user", help="username (postgres_md5, msdcc, oracle10, htdigest)")
     ap.add_argument("--algo", help="force hex algorithm (e.g. md5, ntlm, sha256)")
+    ap.add_argument("--version", action="version", version=f"hashcrack {VERSION}")
+    return ap
 
-    args = ap.parse_args()
 
-    if IS_ANDROID:
-        _boost_cpu()
+def _json_out(obj):
+    print(json.dumps(obj, sort_keys=True, ensure_ascii=False))
+    sys.stdout.flush()
 
-    if args.identify:
-        if not args.hash:
-            ap.error("--identify butuh -H")
-        kind, algo, extra = detect_kind(args.hash.strip())
-        if kind == "unknown":
+
+def _apply_availability(algo, kind):
+    """
+    Buang algoritma yang modul opsionalnya tidak terpasang.
+    Return (algo, kind) atau raise CrackerError bila tidak ada yang tersisa.
+    """
+    algos = list(algo) if isinstance(algo, list) else [algo]
+    runnable, skipped = check_algos(algos)
+    if skipped:
+        names = ", ".join(a for a, _ in skipped)
+        mods = sorted({m for _, m in skipped})
+        warn(f"will not test {names} ({'; '.join(mods)})")
+    if not runnable:
+        need = skipped[0][1] if skipped else "optional dependency"
+        raise CrackerError(f"no runnable algorithm left for this hash - {need}")
+    if kind in ("hex", "hex_multi"):
+        kind = "hex_multi" if len(runnable) > 1 else "hex"
+    return (runnable if len(runnable) > 1 else runnable[0]), kind
+
+
+def _identify_cli(h, as_json):
+    kind, algo, extra = detect_kind(h)
+    if kind == "unknown":
+        if as_json:
+            _json_out({"target": h, "kind": "unknown", "algorithm": None})
+        else:
             err("unknown format")
-            return 2
-        kv("type", kind, CYAN)
-        kv("algorithm", ", ".join(algo) if isinstance(algo, list) else algo, GREEN)
-        if extra:
-            kv("extra", extra, GREY)
+        return 2
+    algos = algo if isinstance(algo, list) else [algo]
+    runnable, skipped = check_algos(algos)
+    if as_json:
+        _json_out({"target": h, "kind": kind, "algorithm": algo, "length": len(h),
+                   "runnable": runnable, "needs_install": [a for a, _ in skipped]})
         return 0
+    kv("type", kind, CYAN)
+    kv("algorithm", ", ".join(algos), GREEN)
+    kv("length", str(len(h)), RESET)
+    for name, why in skipped:
+        warn(f"{name} needs an optional module: {why}")
+    if extra:
+        kv("extra", extra, GREY)
+    return 0
 
-    if not args.hash:
-        return interactive()
 
+def _read_targets(path, forced=None, user=None):
+    """
+    Baca --hash-file. Return (targets, skipped[(line, hash, reason)]).
+    Hanya hash hex yang didukung (kind hex / hex_multi); format lain dilewati
+    dengan alasan, bukan diam-diam diabaikan.
+    """
+    targets, skipped = [], []
+    with open(path, "r", encoding="utf-8", errors="ignore") as f:
+        for lineno, line in enumerate(f, 1):
+            h = line.strip()
+            if not h or h.startswith("#"):
+                continue
+            kind, algo, extra = detect_kind(h)
+            if forced:
+                algos = list(forced)
+                extra = user
+            elif kind in ("hex", "hex_multi"):
+                algos = algo if isinstance(algo, list) else [algo]
+                keep = [a for a in algos if a in SIMPLE_ALGOS]
+                algos = keep or algos
+                extra = user
+            else:
+                skipped.append((lineno, h, f"unsupported format ({kind})"))
+                continue
+            runnable, missing = check_algos(algos)
+            if not runnable:
+                skipped.append((lineno, h, f"needs {missing[0][1]}"))
+                continue
+            targets.append({
+                "target": h,
+                "kind": "hex_multi" if len(runnable) > 1 else "hex",
+                "algos": runnable,
+                "extra": extra,
+                "line": lineno,
+            })
+    return targets, skipped
+
+
+def _build_stream(args):
+    """Return (stream, total_hint, mode). Raise CrackerError saat input invalid."""
+    if args.wordlist:
+        if not os.path.isfile(args.wordlist):
+            raise CrackerError(f"wordlist not found: {args.wordlist}")
+        total_hint = (estimate_rules_total(args.wordlist) if args.rules
+                      else count_candidates(args.wordlist))
+        return (gen_wordlist(args.wordlist, args.rules), total_hint,
+                "wordlist" + (" + mutasi" if args.rules else ""))
+    if args.mask:
+        size = mask_size(args.mask)
+        if size < 2:
+            raise CrackerError(f"mask '{args.mask}' hanya punya {size} kemungkinan")
+        return gen_mask(args.mask), size, f"mask {args.mask}"
+    if args.digits is not None:
+        return (gen_digits(args.digits),
+                sum(10 ** n for n in range(0, args.digits + 1)),
+                f"digits 0..{args.digits}")
+    if args.combo:
+        p1, p2 = args.combo
+        if not (os.path.isfile(p1) and os.path.isfile(p2)):
+            raise CrackerError("one of the wordlists was not found")
+        return (gen_combo(p1, p2), None,
+                f"combo {os.path.basename(p1)} + {os.path.basename(p2)}")
+    if args.literal:
+        words = [w.strip() for w in args.literal.split(",") if w.strip()]
+        if not words:
+            raise CrackerError("--literal kosong")
+        return iter(words), len(words), "literal"
+    raise CrackerError("pick a source: -w / --mask / --digits / --literal / --combo")
+
+
+def _crack_file_cli(args, ap):
+    if args.identify:
+        ap.error("--identify tidak bisa digabung dengan --hash-file")
+    forced = None
+    if args.algo:
+        forced = [a.strip() for a in args.algo.split(",") if a.strip()]
+        unknown = [a for a in forced if a not in known_algos()]
+        if unknown:
+            err(f"unknown algorithm(s): {', '.join(unknown)}")
+            return 2
+    try:
+        targets, skipped = _read_targets(args.hash_file, forced, args.user)
+    except OSError as e:
+        err(f"cannot read {args.hash_file}: {e}")
+        return 2
+    for lineno, h, why in skipped:
+        warn(f"line {lineno} skipped ({why}): {h[:40]}")
+    if not targets:
+        err("no crackable hash in that file")
+        return 2
+    try:
+        stream, total_hint, mode = _build_stream(args)
+    except CrackerError as e:
+        err(str(e))
+        return 2
+
+    if not args.json:
+        if not args.no_banner:
+            banner()
+        header("Cracking", f"{len(targets)} hash")
+        kv("mode", mode, CYAN)
+        kv("core", str(args.threads), RESET)
+        if skipped:
+            kv("skipped", str(len(skipped)), YELLOW)
+        print()
+        rule("─", GREY)
+        print()
+
+    chunk = args.chunk or 5000
+    panel = LivePanel(total_hint, f"{len(targets)} hash",
+                      detail=f"{len(targets)} target",
+                      enabled=not args.quiet and not args.json)
+    try:
+        found, done, elapsed = run_multi(targets, stream, args.threads, chunk, panel)
+    except KeyboardInterrupt:
+        print("\r\033[K")
+        warn("stopped by user")
+        return 130
+    except CrackerError as e:
+        err(str(e))
+        return 2
+
+    rows = []
+    for idx, t in enumerate(targets):
+        if idx in found:
+            pw, algo = found[idx]
+            rows.append({"hash": t["target"], "line": t["line"], "found": True,
+                         "password": pw, "algorithm": algo})
+        else:
+            rows.append({"hash": t["target"], "line": t["line"], "found": False,
+                         "password": None, "algorithm": None})
+    cracked = sum(1 for r in rows if r["found"])
+    if args.json:
+        _json_out({"mode": mode, "targets": rows, "cracked": cracked,
+                   "total": len(rows), "candidates": done, "elapsed": round(elapsed, 3)})
+    else:
+        print("\r\033[K", end="")
+        print()
+        for r in rows:
+            if r["found"]:
+                _say(f"  {GREEN}✔{RESET} {BOLD}{r['password']}{RESET}  "
+                     f"{CYAN}{r['algorithm']}{RESET}  {GREY}{r['hash'][:44]}{RESET}")
+            else:
+                _say(f"  {RED}✘{RESET} {GREY}{r['hash'][:44]}{RESET}")
+        print()
+        kv("cracked", f"{cracked}/{len(rows)}", GREEN if cracked else YELLOW)
+        kv("candidates", fmt_num(done), RESET)
+        kv("time", human_time(elapsed), RESET)
+        print()
+    return 0 if cracked == len(rows) else 1
+
+
+def _crack_one_cli(args, ap):
     target = args.hash.strip()
     kind, algo, extra = detect_kind(target)
 
     if kind == "zip":
+        if args.json:
+            ap.error("--json belum mendukung file ZIP")
         return crack_zip(target)
 
-    if not (args.wordlist or args.mask or args.digits is not None
-            or args.literal or args.combo):
-        ap.error("pick a source: -w / --mask / --digits / --literal / --combo")
-
     if args.algo:
-        # --algo bisa berisi satu nama atau daftar dipisah koma
-        algo = [a.strip() for a in args.algo.split(",") if a.strip()]
-        kind = "hex_multi" if len(algo) > 1 else "hex"
-        algo = algo if len(algo) > 1 else algo[0]
-        extra = args.user or extra
-    elif kind == "hex_multi":
-        # test all simple candidates at once
-        algo = [a for a in algo if a in SIMPLE_ALGOS] or algo[0]
-        if len(algo) == 1:
-            algo = algo[0]
-            kind = "hex"
-        extra = args.user or extra
-        print(f"{GREY}  › testing multiple formats: {', '.join(algo) if isinstance(algo, list) else algo}{RESET}")
-    elif kind == "hex" and args.user:
-        extra = args.user
-    if extra is None and isinstance(algo, str) and algo in NEEDS_USER:
-        extra = "postgres" if algo == "postgres_md5" else "user"
+        unknown = [a for a in args.algo.split(",") if a.strip()
+                   and a.strip() not in known_algos()]
+        if unknown:
+            err(f"unknown algorithm(s): {', '.join(unknown)}")
+            return 2
 
     if kind == "unknown":
         err("unknown hash format")
         return 2
 
-    if not args.no_banner:
-        banner()
+    try:
+        algo, kind = _apply_availability(algo, kind)
+    except CrackerError as e:
+        if args.json:
+            _json_out({"target": target, "found": False, "error": str(e)})
+        err(str(e))
+        return 2
 
-    total_hint = None
-    if args.wordlist:
-        if not os.path.isfile(args.wordlist):
-            err(f"wordlist not found: {args.wordlist}")
-            return 2
-        stream = gen_wordlist(args.wordlist, args.rules)
-        if not args.rules:
-            try:
-                with open(args.wordlist, "rb") as f:
-                    total_hint = sum(1 for _ in f)
-            except OSError:
-                pass
-        mode = "wordlist" + (" + mutasi" if args.rules else "")
-    elif args.mask:
-        total_hint = mask_size(args.mask)
-        stream = gen_mask(args.mask)
-        mode = f"mask {args.mask}"
-    elif args.digits is not None:
-        total_hint = sum(10 ** n for n in range(0, args.digits + 1))
-        stream = gen_digits(args.digits)
-        mode = f"digits 0..{args.digits}"
-    elif args.combo:
-        p1, p2 = args.combo
-        if not (os.path.isfile(p1) and os.path.isfile(p2)):
-            err("one of the wordlists was not found")
-            return 2
-        stream = gen_combo(p1, p2)
-        mode = f"combo {os.path.basename(p1)} + {os.path.basename(p2)}"
-    else:
-        words = [w.strip() for w in args.literal.split(",") if w.strip()]
-        total_hint = len(words)
-        stream = iter(words)
-        mode = "literal"
+    if args.algo:
+        extra = args.user or extra
+    elif kind in ("hex", "hex_multi") and args.user:
+        extra = args.user
+    if isinstance(algo, str) and algo in NEEDS_USER:
+        extra = args.user or extra or ("postgres" if algo == "postgres_md5" else "user")
 
-    header("Cracking", "")
-    kv("target", target[:50] + ("..." if len(target) > 50 else ""), GREY)
-    kv("algorithm", str(algo), MAGENTA)
-    kv("mode", mode, CYAN)
-    kv("core", str(args.threads), RESET)
-    if extra:
-        kv("user", extra, GREY)
-    print()
-    rule("─", GREY)
-    print()
+    try:
+        stream, total_hint, mode = _build_stream(args)
+    except CrackerError as e:
+        err(str(e))
+        return 2
+
+    if not args.json:
+        if not args.no_banner:
+            banner()
+        header("Cracking", "")
+        kv("target", target[:50] + ("..." if len(target) > 50 else ""), GREY)
+        kv("algorithm", str(algo), MAGENTA)
+        kv("mode", mode, CYAN)
+        kv("core", str(args.threads), RESET)
+        if extra:
+            kv("user", extra, GREY)
+        print()
+        rule("─", GREY)
+        print()
 
     chunk = args.chunk or (200 if _is_slow_algo(algo) else 5000)
     panel = LivePanel(total_hint, str(algo), detail=str(algo),
-                      enabled=not args.quiet)
+                      enabled=not args.quiet and not args.json)
     try:
         found, done, elapsed, hit_algo = run(
             target, kind, algo, stream, total_hint, args.threads, chunk,
@@ -1597,8 +2049,56 @@ def main():
         print("\r\033[K")
         warn("stopped by user")
         return 130
-    okk = show_result(found, done, elapsed, target, str(hit_algo))
-    return 0 if okk else 1
+    except CrackerError as e:
+        if args.json:
+            _json_out({"target": target, "found": False, "error": str(e)})
+        err(str(e))
+        return 2
+
+    if args.json:
+        _json_out({
+            "target": target,
+            "found": found is not None,
+            "password": found,
+            "algorithm": hit_algo if found is not None else None,
+            "tested": algo,
+            "candidates": done,
+            "elapsed": round(elapsed, 3),
+            "mode": mode,
+        })
+        return 0 if found is not None else 1
+    hit = show_result(found, done, elapsed, target, str(hit_algo))
+    return 0 if hit else 1
+
+
+def main():
+    ap = _build_parser()
+    args = ap.parse_args()
+
+    global _JSON_MODE
+    _JSON_MODE = bool(args.json)
+
+    if IS_ANDROID:
+        _boost_cpu()
+
+    if args.hash and args.hash_file:
+        ap.error("-H dan --hash-file tidak bisa digabung")
+
+    if args.identify:
+        if not args.hash:
+            ap.error("--identify butuh -H")
+        return _identify_cli(args.hash.strip(), args.json)
+
+    if args.hash_file:
+        return _crack_file_cli(args, ap)
+
+    if not args.hash:
+        if args.json:
+            err("--json membutuhkan -H atau --hash-file")
+            return 2
+        return interactive()
+
+    return _crack_one_cli(args, ap)
 
 
 if __name__ == "__main__":
@@ -1607,3 +2107,6 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print()
         sys.exit(130)
+    except CrackerError as exc:
+        print(f"  \u2718 {exc}")
+        sys.exit(2)
