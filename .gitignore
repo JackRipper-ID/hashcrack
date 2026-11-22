@@ -1,0 +1,4 @@
+top1m.txt
+wordlist-*
+__pycache__/
+*.pyc
