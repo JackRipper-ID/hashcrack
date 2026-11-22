@@ -2,3 +2,9 @@ top1m.txt
 wordlist-*
 __pycache__/
 *.pyc
+
+# build artifacts
+*.AppImage
+*.deb
+packaging/appdir/
+packaging/appdir_runtime
