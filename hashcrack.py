@@ -15,7 +15,7 @@ CLI cepat:
     ./hashcrack.py -H <hash> -w wordlist.txt -r
     ./hashcrack.py -H <hash> --mask "?l?l?l?d?d"
     ./hashcrack.py -H <hash> --digits 6
-    ./hashcrack.py -H <hash> --combo w1.txt w2.txt     # kombinasi dua kamus
+    ./hashcrack.py -H <hash> --combo w1.txt w2.txt     # combo dua wordlist
     ./hashcrack.py -H <hash> --literal "kata1,kata2"
 
 Format hash didukung (deteksi otomatis):
@@ -261,7 +261,7 @@ def md4_digest(data):
     return _md4_py(data)
 
 
-# ══════════════════════════ deteksi algoritma ══════════════════════════
+# ══════════════════════════ deteksi algorithm ══════════════════════════
 
 HEX_LEN = {
     8: ["crc32"],
@@ -290,7 +290,7 @@ def detect_kind(h):
     """
     Return (kind, algo, extra):
       'hex'       → digest hex murni
-      'hex_multi' → panjang cocok beberapa format, algo = daftar kandidat
+      'hex_multi' -> length matches several formats, algo = candidate list
       'crypt'     → passlib / bcrypt
       'zip'       → file ZIP
       'unknown'
@@ -382,7 +382,7 @@ def _lmhash(s):
 
 
 def _digest_for(algo, cand):
-    """Dapatkan digest hex untuk algoritma hex murni."""
+    """Get hex digest for a plain hex algorithm."""
     if algo == "md4":
         return md4_digest(cand.encode()).hex()
     if algo == "ntlm":
@@ -401,7 +401,7 @@ def _digest_for(algo, cand):
 # ══════════════════════════ worker ══════════════════════════
 
 _target = _kind = _algo = _verifier = _counter = _extra = None
-_algos = None          # daftar kandidat untuk hex_multi
+_algos = None          # candidate list for hex_multi
 
 
 def _init_worker(target, kind, algo, counter, extra=None):
@@ -423,10 +423,10 @@ def _init_worker(target, kind, algo, counter, extra=None):
 
 
 def _check_with(cand, algo):
-    """Sama seperti _check tapi terhadap satu algoritma tertentu."""
+    """Sama seperti _check tapi terhadap satu algorithm tertentu."""
     global _algo
     if _kind == "hex_multi":
-        # uji hex dengan algoritma bergantian
+        # uji hex dengan algorithm bergantian
         old = _algo
         _algo = algo
         try:
@@ -496,7 +496,7 @@ def _check(cand):
 
 
 def worker_chunk(candidates):
-    """Return (kandidat, algo) bila cocok, atau None."""
+    """Return (candidate, algo) if matched, else None."""
     checked = 0
     for cand in candidates:
         checked += 1
@@ -508,7 +508,7 @@ def worker_chunk(candidates):
     return None
 
 
-# ══════════════════════════ generator kandidat ══════════════════════════
+# ══════════════════════════ candidate generators ══════════════════════════
 
 LEET = str.maketrans("aeiostAEIOST", "431057431057")
 SUFFIXES = ("", "1", "12", "123", "1234", "12345", "0", "00", "007",
@@ -543,7 +543,7 @@ def gen_wordlist(path, rules=False):
 
 
 def gen_combo(path1, path2, limit=200000):
-    """Semua kombinasi w1 + w2 (dengan batas aman)."""
+    """Semua combo w1 + w2 (dengan batas aman)."""
     with open(path1, "r", encoding="utf-8", errors="ignore") as f1, \
          open(path2, "r", encoding="utf-8", errors="ignore") as f2:
         w2 = [l.rstrip("\r\n") for l in f2 if l.strip()]
@@ -621,11 +621,11 @@ def chunks(it, size):
 
 
 def human_time(s):
-    if s < 1:       return "0 detik"
-    if s < 60:      return f"{s:.0f} detik"
-    if s < 3600:    return f"{s / 60:.1f} menit"
-    if s < 86400:   return f"{s / 3600:.1f} jam"
-    if s < 31536000: return f"{s / 86400:.1f} hari"
+    if s < 1:       return "0 s"
+    if s < 60:      return f"{s:.0f} s"
+    if s < 3600:    return f"{s / 60:.1f} min"
+    if s < 86400:   return f"{s / 3600:.1f} h"
+    if s < 31536000: return f"{s / 86400:.1f} d"
     return f"{s / 31536000:.1f} tahun"
 
 
@@ -641,7 +641,7 @@ GRAD = (51, 45, 39, 33, 27, 21)
 
 
 class LivePanel:
-    """Panel live yang digambar ulang di tempat — tanpa menggulir."""
+    """Live panel redrawn in place - no scrolling."""
 
     def __init__(self, total_hint, algo, detail="", enabled=True):
         self.total = total_hint
@@ -731,16 +731,16 @@ class LivePanel:
                         for v in hist)
         spark = f"{_fg(45)}{spark}{RESET}"
 
-        title = "selesai" if final else "menganalisis"
+        title = "done" if final else "analyzing"
         head = f"  {_fg(51)}{spin}{RESET} {BOLD}{title}{RESET}  {GREY}{self.detail}{RESET}"
         stats = (f"  {BOLD}{_fg(51)}{pct.strip():>6}{RESET}   "
                  f"{GREY}{fmt_num(done)}"
                  f"{('/' + fmt_num(self.total)) if self.total else ''}{RESET}   "
                  f"{_fg(45)}{rate:,.0f} H/s{RESET}   "
                  f"{YELLOW}{eta_s}{RESET}")
-        speed = (f"  {GREY}kecepatan{RESET} {spark} "
+        speed = (f"  {GREY}speed{RESET} {spark} "
                  f"{GREY}{fmt_num(int(self.inst))} H/s{RESET}   "
-                 f"{GREY}waktu{RESET} {human_time(elapsed)}")
+                 f"{GREY}time{RESET} {human_time(elapsed)}")
 
         lines = [
             f"  {_fg(39)}╭{'─' * inner}╮{RESET}",
@@ -821,19 +821,19 @@ def show_result(found, done, elapsed, target, algo):
     print("\r\033[K", end="")
     print()
     if found is not None:
-        _box("PASSWORD DITEMUKAN", [f"{BOLD}{CYAN}{found}{RESET}"], GREEN)
+        _box("PASSWORD FOUND", [f"{BOLD}{CYAN}{found}{RESET}"], GREEN)
         print()
         kv("hash", target[:52] + ("..." if len(target) > 52 else ""), GREY)
-        kv("algoritma", algo, CYAN)
-        kv("waktu", f"{elapsed:.2f} detik", GREEN)
-        kv("kandidat", f"{fmt_num(done)}  ({rate:,.0f} H/s)", GREEN)
+        kv("algorithm", algo, CYAN)
+        kv("time", f"{elapsed:.2f} s", GREEN)
+        kv("candidates", f"{fmt_num(done)}  ({rate:,.0f} H/s)", GREEN)
         print()
         return True
-    _box("TIDAK DITEMUKAN", [f"{YELLOW}{fmt_num(done)} kandidat diuji{RESET}",
-                             f"{YELLOW}kecepatan {rate:,.0f} H/s{RESET}"], RED)
+    _box("NOT FOUND", [f"{YELLOW}{fmt_num(done)} candidates tested{RESET}",
+                             f"{YELLOW}speed {rate:,.0f} H/s{RESET}"], RED)
     print()
-    kv("waktu", human_time(elapsed), YELLOW)
-    print(f"  {GREY}Petunjuk: coba kamus + mutasi (-r), atau kamus yang lebih besar.{RESET}")
+    kv("time", human_time(elapsed), YELLOW)
+    print(f"  {GREY}Hint: try a wordlist + mutations (-r), or a bigger wordlist.{RESET}")
     print()
     return False
 
@@ -864,7 +864,7 @@ def find_wordlists():
         "/usr/share/wordlists/rockyou.txt.gz",
         "/usr/share/dict/words",
     ]
-    # semua kamus di ~/wordlists dan folder tool (termasuk wordlist Indonesia)
+    # semua wordlist di ~/wordlists dan folder tool (termasuk wordlist Indonesia)
     dirs = [os.path.expanduser("~/wordlists"), base,
             "/data/data/com.termux/files/home/wordlists",
             "/storage/emulated/0/wordlists"]
@@ -885,7 +885,7 @@ def find_wordlists():
         except OSError:
             continue
         real = os.path.realpath(c)
-        # lewati file kosong/terlalu kecil (bukan kamus) dan duplikat
+        # lewati file kosong/terlalu kecil (bukan wordlist) dan duplikat
         if real in seen or size < 100:
             continue
         seen.add(real)
@@ -896,7 +896,7 @@ def find_wordlists():
 
 
 def ensure_deps():
-    """Cek modul opsional dan beri petunjuk install."""
+    """Check optional modules and give install hints."""
     missing = []
     try:
         import bcrypt  # noqa: F401
@@ -927,9 +927,9 @@ def ask_int(prompt, default, lo, hi):
             n = int(v)
             if lo <= n <= hi:
                 return n
-            warn(f"harus antara {lo} dan {hi}")
+            warn(f"must be between {lo} and {hi}")
         except ValueError:
-            warn("masukkan angka")
+            warn("enter digit count")
 
 
 ALGO_NOTE = {
@@ -979,21 +979,21 @@ ALGO_NOTE = {
 
 
 def ident_mode():
-    header("Kenali Hash")
-    h = ask("tempel hash atau path file zip/sqlite")
+    header("Identify Hash")
+    h = ask("paste hash or zip file path/sqlite")
     if not h:
         return
     kind, algo, extra = detect_kind(h)
     if kind == "unknown":
-        err("format tidak dikenali")
+        err("unknown format")
         print(f"  {GREY}hex 16/20/28/32/48/64, atau $1$ $apr1$ $2b$ $5$ $6$ "
-              f"$P$ $pbkdf2$ dll{RESET}")
+              f"$P$ $pbkdf2$ etc{RESET}")
         return
     print()
-    label = {"hex": "hex digest", "hex_multi": "hex (beberapa kandidat)",
-             "crypt": "crypt / terformat", "zip": "file ZIP", "sqlite": "file SQLite"}
-    kv("jenis", label.get(kind, kind), CYAN)
-    kv("algoritma", ", ".join(algo) if isinstance(algo, list) else algo, GREEN)
+    label = {"hex": "hex digest", "hex_multi": "hex (multiple candidates)",
+             "crypt": "crypt / formatted", "zip": "ZIP file", "sqlite": "SQLite file"}
+    kv("type", label.get(kind, kind), CYAN)
+    kv("algorithm", ", ".join(algo) if isinstance(algo, list) else algo, GREEN)
     if kind == "zip":
         import zipfile
         try:
@@ -1003,7 +1003,7 @@ def ident_mode():
                 kv("enkripsi", "AES" if any(i.compress_type == 51 for i in z.infolist())
                    else "ZipCrypto", YELLOW)
         except Exception as e:
-            warn(f"tidak bisa membaca: {e}")
+            warn(f"cannot read: {e}")
     if kind in ("hex", "hex_multi"):
         kv("panjang", str(len(h)), RESET)
     if isinstance(algo, str) and algo.startswith("bcrypt"):
@@ -1014,14 +1014,14 @@ def ident_mode():
             pass
     note = ALGO_NOTE.get(algo if isinstance(algo, str) else "")
     if note:
-        kv("catatan", note, GREY)
+        kv("note", note, GREY)
     print()
 
 
 def bench_mode():
-    header("Benchmark", "mengukur kecepatan nyata di mesin ini")
+    header("Benchmark", "mengukur speed nyata di mesin ini")
     core = cpu_count()
-    info(f"{core} core tersedia")
+    info(f"{core} cores available")
     print()
     for label, name in [("md5", "md5"), ("sha1", "sha1"), ("sha256", "sha256")]:
         h = hashlib.new(name, b"benchmark").hexdigest()
@@ -1055,14 +1055,14 @@ def help_mode():
     header("Bantuan")
     print(f"""  {BOLD}Metode serangan{RESET}
   {CYAN}1. Kamus{RESET}           coba kata dari file — selalu mulai dari sini
-  {CYAN}2. Kamus + aturan{RESET}  kata dasar dimutasi (Kapital, angka, simbol, leet)
-  {CYAN}3. Pola (mask){RESET}     brute-force terarah, mis. 3 huruf + 2 angka
+  {CYAN}2. Kamus + aturan{RESET}  kata dasar dimutasi (Kapital, digits, simbol, leet)
+  {CYAN}3. Pola (mask){RESET}     brute-force terarah, mis. 3 huruf + 2 digits
   {CYAN}4. Angka{RESET}           PIN / OTP
   {CYAN}5. Kata tertentu{RESET}   uji beberapa kata langsung
-  {CYAN}6. Kombinasi{RESET}       semua pasangan w1+w2 dari dua kamus
+  {CYAN}6. Kombinasi{RESET}       semua pasangan w1+w2 dari dua wordlist
 
-  {BOLD}Kode mask{RESET}
-  {CYAN}?l{RESET} huruf kecil   {CYAN}?u{RESET} huruf besar   {CYAN}?d{RESET} angka
+  {BOLD}Mask codes{RESET}
+  {CYAN}?l{RESET} huruf kecil   {CYAN}?u{RESET} huruf besar   {CYAN}?d{RESET} digits
   {CYAN}?s{RESET} simbol        {CYAN}?a{RESET} semua         {CYAN}?h{RESET} hex kecil
   {CYAN}?H{RESET} hex besar
 
@@ -1071,7 +1071,7 @@ def help_mode():
         print(f"  {CYAN}{k:<24}{RESET} {GREY}{v}{RESET}")
     print(f"""
   {BOLD}Batasan jujur{RESET}
-  Mode ini murni CPU. bcrypt/scrypt hanya realistis lewat kamus —
+  Mode ini murni CPU. bcrypt/scrypt hanya realistis lewat wordlist —
   brute-force bcrypt 8 karakter bisa memakan ratusan tahun, itu
   memang tujuannya. Gunakan hanya pada hash milik Anda sendiri
   atau sistem yang Anda uji dengan izin.
@@ -1083,41 +1083,41 @@ def help_mode():
 
 
 def build_mask_interactive():
-    header("Penyusun Pola", "susun karakter satu per satu")
+    header("Mask Builder", "compose character sets one by one")
     presets = [
-        ("6 huruf kecil", "?l?l?l?l?l?l"),
-        ("8 huruf kecil", "?l?l?l?l?l?l?l?l"),
-        ("4 huruf + 2 angka", "?l?l?l?l?d?d"),
-        ("6 huruf + 2 angka", "?l?l?l?l?l?l?d?d"),
-        ("kata kecil + 4 angka", "?l?l?l?l?l?l?l?l?d?d?d?d"),
-        ("4 angka (PIN)", "?d?d?d?d"),
-        ("6 angka (PIN)", "?d?d?d?d?d?d"),
-        ("8 angka", "?d?d?d?d?d?d?d?d"),
-        ("6 huruf kecil+besar", "?l?u?l?u?l?u"),
-        ("susun sendiri", None),
+        ("6 lowercase", "?l?l?l?l?l?l"),
+        ("8 lowercase", "?l?l?l?l?l?l?l?l"),
+        ("4 huruf + 2 digits", "?l?l?l?l?d?d"),
+        ("6 huruf + 2 digits", "?l?l?l?l?l?l?d?d"),
+        ("kata kecil + 4 digits", "?l?l?l?l?l?l?l?l?d?d?d?d"),
+        ("4 digits (PIN)", "?d?d?d?d"),
+        ("6 digits (PIN)", "?d?d?d?d?d?d"),
+        ("8 digits", "?d?d?d?d?d?d?d?d"),
+        ("6 lower+upper", "?l?u?l?u?l?u"),
+        ("custom", None),
     ]
-    print(f"  {GREY}Pola cepat:{RESET}")
+    print(f"  {GREY}Quick presets:{RESET}")
     for i, (name, m) in enumerate(presets, 1):
-        extra = f"  {GREY}{fmt_num(mask_size(m))} kemungkinan{RESET}" if m else ""
+        extra = f"  {GREY}{fmt_num(mask_size(m))} possibilities{RESET}" if m else ""
         print(f"   {CYAN}{i}{RESET}. {name}{extra}")
     print()
-    ch = ask_int("pilih pola", 1, 1, len(presets))
+    ch = ask_int("choose mask", 1, 1, len(presets))
     name, mask = presets[ch - 1]
     if mask:
-        info(f"pola: {BOLD}{mask}{RESET}  ({name})")
+        info(f"mask: {BOLD}{mask}{RESET}  ({name})")
         return mask
     print()
-    print(f"  {GREY}Kode: {RESET}?l ?u ?d ?s ?a ?h ?H  {GREY}contoh: ?l?l?l?d?d{RESET}")
+    print(f"  {GREY}Codes: {RESET}?l ?u ?d ?s ?a ?h ?H  {GREY}example: ?l?l?l?d?d{RESET}")
     while True:
         m = ask("mask")
         if m and mask_size(m) > 1:
-            info(f"{fmt_num(mask_size(m))} kemungkinan")
+            info(f"{fmt_num(mask_size(m))} possibilities")
             return m
-        warn("mask tidak valid atau terlalu pendek")
+        warn("invalid or too-short mask")
 
 
 def pick_wordlist():
-    header("Pilih Kamus", "daftar kata yang akan diuji")
+    header("Choose Wordlist", "candidate passwords")
     found = find_wordlists()
     print()
     n = 1
@@ -1128,20 +1128,20 @@ def pick_wordlist():
             print(f"   {CYAN}{n}{RESET}. {path}  {GREY}({mb:.1f} MB){RESET}")
             options.append(path)
             n += 1
-    print(f"   {CYAN}{n}{RESET}. kumpulan password umum bawaan  {GREY}(~130 kata){RESET}")
+    print(f"   {CYAN}{n}{RESET}. built-in common passwords  {GREY}(~130 words){RESET}")
     options.append("__common__")
     n += 1
-    print(f"   {CYAN}{n}{RESET}. masukkan path sendiri")
+    print(f"   {CYAN}{n}{RESET}. enter custom path")
     options.append("__manual__")
     print()
-    ch = ask_int("pilih", 1 if found else n - 2, 1, len(options))
+    ch = ask_int("choose", 1 if found else n - 2, 1, len(options))
     choice = options[ch - 1]
     if choice == "__manual__":
         while True:
-            p = ask("path file")
+            p = ask("file path")
             if os.path.isfile(p):
                 return p
-            err("file tidak ditemukan")
+            err("file not found")
     if choice == "__common__":
         p = "/tmp/hashcrack_common.txt" if not IS_TERMX else os.path.expanduser(
             "~/hashcrack_common.txt")
@@ -1153,26 +1153,26 @@ def pick_wordlist():
 
 def pick_algo_from_multi(cands):
     """
-    Panjang hex cocok beberapa format. Default: uji semua sekaligus
+    Panjang hex cocok beberapa format. Default: test all at once
     (hasilnya tetap akurat karena dicocokkan per hitungan).
     """
-    header("Beberapa Algoritma Cocok", "panjang hex cocok dengan beberapa format")
+    header("Multiple Algorithms Match", "hex length matches several formats")
     print()
-    print(f"   {CYAN}0{RESET}. {BOLD}uji semua sekaligus{RESET}  {GREY}(disarankan){RESET}")
+    print(f"   {CYAN}0{RESET}. {BOLD}test all at once{RESET}  {GREY}(recommended){RESET}")
     for i, c in enumerate(cands, 1):
         note = ALGO_NOTE.get(c, "")
         print(f"   {CYAN}{i}{RESET}. {c:<16} {GREY}{note}{RESET}")
     print()
-    ch = ask_int("pilih", 0, 0, len(cands))
+    ch = ask_int("choose", 0, 0, len(cands))
     if ch == 0:
-        # hanya algoritma sederhana (yang tidak butuh nama user)
+        # hanya algorithm sederhana (yang tidak butuh nama user)
         simple = [a for a in cands if a in SIMPLE_ALGOS]
         return simple or cands
     return cands[ch - 1]
 
 
 def _is_slow_algo(algo):
-    """True bila algoritma lambat (butuh chunk kecil)."""
+    """True bila algorithm lambat (butuh chunk kecil)."""
     names = algo if isinstance(algo, list) else [algo]
     for a in names:
         if not isinstance(a, str):
@@ -1184,14 +1184,14 @@ def _is_slow_algo(algo):
 
 
 def crack_mode():
-    header("Pecahkan Hash / File")
-    h = ask("tempel hash atau path file zip")
+    header("Crack Hash / File")
+    h = ask("paste hash or zip file path")
     if not h:
         return None
     kind, algo, extra = detect_kind(h)
     if kind == "unknown":
-        err("format hash tidak dikenali")
-        print(f"  {GREY}Coba opsi 'Kenali Hash' dulu untuk melihat format didukung{RESET}")
+        err("unknown hash format")
+        print(f"  {GREY}Try the 'Identify Hash' option first to see supported formats{RESET}")
         print()
         return None
 
@@ -1206,31 +1206,31 @@ def crack_mode():
             kind = "hex"
         if isinstance(algo, str) and algo in ("oracle10", "htdigest", "msdcc",
                                                "msdcc2", "postgres_md5"):
-            extra = ask(f"nama user/realm untuk {algo}", "user")
+            extra = ask(f"username/realm for {algo}", "user")
     elif kind == "hex" and algo in ("oracle10", "htdigest", "msdcc", "msdcc2"):
-        extra = ask(f"nama user/realm untuk {algo}", "user")
+        extra = ask(f"username/realm for {algo}", "user")
 
     print()
-    kv("algoritma", ", ".join(algo) if isinstance(algo, list) else algo, GREEN)
+    kv("algorithm", ", ".join(algo) if isinstance(algo, list) else algo, GREEN)
     if isinstance(algo, str) and algo.startswith("bcrypt"):
-        warn("bcrypt lambat: ~44 H/s di laptop ini, ~10 H/s di HP.")
+        warn("bcrypt is slow: ~44 H/s on this laptop, ~10 H/s on phones.")
     print()
-    print(f"  {BOLD}Metode:{RESET}")
-    print(f"   {CYAN}1{RESET}. Kamus                {GREY}cepat, coba pertama{RESET}")
-    print(f"   {CYAN}2{RESET}. Kamus + mutasi       {GREY}sering berhasil{RESET}")
-    print(f"   {CYAN}3{RESET}. Pola (mask)          {GREY}kalau tahu bentuknya{RESET}")
-    print(f"   {CYAN}4{RESET}. Angka saja (PIN)     {GREY}4-8 digit{RESET}")
-    print(f"   {CYAN}5{RESET}. Kata tertentu        {GREY}uji langsung{RESET}")
-    print(f"   {CYAN}6{RESET}. Kombinasi 2 kamus    {GREY}kata1+kata2{RESET}")
+    print(f"  {BOLD}Attack:{RESET}")
+    print(f"   {CYAN}1{RESET}. Wordlist             {GREY}fast, try first{RESET}")
+    print(f"   {CYAN}2{RESET}. Wordlist + mutations {GREY}often works{RESET}")
+    print(f"   {CYAN}3{RESET}. Mask pattern         {GREY}when you know the shape{RESET}")
+    print(f"   {CYAN}4{RESET}. Digits only (PIN)    {GREY}4-8 digit{RESET}")
+    print(f"   {CYAN}5{RESET}. Specific words       {GREY}test directly{RESET}")
+    print(f"   {CYAN}6{RESET}. Combine 2 wordlists    {GREY}word1+word2{RESET}")
     print()
-    method = ask_int("metode", 1, 1, 6)
+    method = ask_int("method", 1, 1, 6)
 
     total_hint = None
     rules = False
     if method in (1, 2):
         path = pick_wordlist()
         if not os.path.isfile(path):
-            err("kamus tidak ditemukan")
+            err("wordlist not found")
             return None
         rules = method == 2
         try:
@@ -1239,7 +1239,7 @@ def crack_mode():
         except OSError:
             lines = 0
         total_hint = lines * (len(apply_rules("abc")) if rules else 1)
-        info(f"kamus: {path}  {GREY}({fmt_num(lines)} baris){RESET}")
+        info(f"wordlist: {path}  {GREY}({fmt_num(lines)} baris){RESET}")
         stream = gen_wordlist(path, rules)
     elif method == 3:
         mask = build_mask_interactive()
@@ -1250,16 +1250,16 @@ def crack_mode():
         total_hint = sum(10 ** k for k in range(0, n + 1))
         stream = gen_digits(n)
     elif method == 6:
-        p1 = ask("kamis pertama (path)")
-        p2 = ask("kamis kedua (path)")
+        p1 = ask("first wordlist (path)")
+        p2 = ask("second wordlist (path)")
         if not (os.path.isfile(p1) and os.path.isfile(p2)):
-            err("salah satu kamus tidak ditemukan")
+            err("one of the wordlists was not found")
             return None
         total_hint = None
-        info("mode kombinasi: batas 200.000 kandidat demi aman")
+        info("combo mode: capped at 200,000 candidates for safety")
         stream = gen_combo(p1, p2)
     else:
-        raw = ask("kata uji, pisah koma")
+        raw = ask("test words, comma-separated")
         words = [w.strip() for w in raw.split(",") if w.strip()]
         if not words:
             return None
@@ -1268,12 +1268,12 @@ def crack_mode():
 
     print()
     core = cpu_count()
-    t = ask_int("jumlah core", core, 1, core)
+    t = ask_int("number of cores", core, 1, core)
     if total_hint and isinstance(algo, str) and algo.startswith("bcrypt"):
         est = total_hint / (11 * t)
         if est > 60:
-            warn(f"perkiraan waktu: {human_time(est)}")
-            if ask("lanjut? (y/n)", "y").lower() != "y":
+            warn(f"estimated time: {human_time(est)}")
+            if ask("continue? (y/n)", "y").lower() != "y":
                 return None
     print()
     rule("─", GREY)
@@ -1289,7 +1289,7 @@ def crack_mode():
             panel=panel, detail=str(algo), extra=extra)
     except KeyboardInterrupt:
         print("\r\033[K")
-        warn("dihentikan pengguna")
+        warn("stopped by user")
         return None
     return 0 if show_result(found, done, elapsed, h, hit_algo) else 1
 
@@ -1343,23 +1343,23 @@ def _zip_worker(chunk):
 
 def crack_zip(path):
     """Pecahkan password file zip (ZipCrypto via stdlib, AES via 7z)."""
-    header("Buka ZIP Terenkripsi")
+    header("Encrypted ZIP")
     info(f"file: {path}")
     import zipfile
     try:
         with zipfile.ZipFile(path) as z:
             entries = z.infolist()
             if not any(e.flag_bits & 0x1 for e in entries):
-                ok("file zip ini TIDAK terenkripsi")
+                ok("this zip is NOT encrypted")
                 return None
             has_aes = any(e.compress_type == 99 for e in entries)
             encrypted = [e for e in entries if e.flag_bits & 0x1]
             test_entry = next((e for e in encrypted if not e.is_dir()), encrypted[0])
-            kv("metode", "AES (butuh 7z)" if has_aes else "ZipCrypto",
+            kv("method", "AES (requires 7z)" if has_aes else "ZipCrypto",
                YELLOW)
-            kv("entri uji", test_entry.filename, RESET)
+            kv("test entry", test_entry.filename, RESET)
     except Exception as e:
-        err(f"tidak bisa membuka: {e}")
+        err(f"cannot open: {e}")
         return None
 
     if has_aes and not (shutil.which("7z") or shutil.which("7za")):
@@ -1367,10 +1367,10 @@ def crack_zip(path):
         return None
 
     core = cpu_count()
-    t = ask_int("jumlah core", core, 1, max(1, core))
+    t = ask_int("number of cores", core, 1, max(1, core))
     print()
-    print(f"  {BOLD}Metode:{RESET}  1. kamus   2. pola   3. angka   4. kata tertentu")
-    mode = ask("metode", "1")
+    print(f"  {BOLD}Attack:{RESET}  1. wordlist   2. mask   3. digits   4. literal")
+    mode = ask("method", "1")
 
     total_hint = None
     if mode == "1":
@@ -1387,7 +1387,7 @@ def crack_zip(path):
         total_hint = sum(10 ** k for k in range(n + 1))
         stream = gen_digits(n)
     else:
-        raw = ask("kata, pisah koma")
+        raw = ask("words, comma-separated")
         words = [w.strip() for w in raw.split(",") if w.strip()]
         total_hint = len(words)
         stream = iter(words)
@@ -1415,10 +1415,10 @@ def crack_zip(path):
     elapsed = time.time() - t0
     done = counter.value
     if found:
-        _box("PASSWORD ZIP DITEMUKAN", [f"{BOLD}{CYAN}{found}{RESET}"], GREEN)
-        info(f"buka dengan: 7z x -p'{found}' '{path}'")
+        _box("ZIP PASSWORD FOUND", [f"{BOLD}{CYAN}{found}{RESET}"], GREEN)
+        info(f"open with: 7z x -p'{found}' '{path}'")
         return 0
-    warn(f"tidak ditemukan ({fmt_num(done)} kandidat dalam {human_time(elapsed)})")
+    warn(f"not found ({fmt_num(done)}  candidates in {human_time(elapsed)})")
     return 1
 
 
@@ -1426,21 +1426,21 @@ def interactive():
     banner()
     miss = ensure_deps()
     if miss:
-        warn("modul opsional belum terpasang:")
+        warn("optional modules not installed:")
         for name, cmd in miss:
             print(f"    {YELLOW}{name}{RESET} {GREY}→ {cmd}{RESET}")
         print()
     while True:
-        header("Menu Utama")
-        print(f"   {CYAN}1{RESET}. 🔓 Pecahkan hash / zip  {GREY}(wizard lengkap){RESET}")
-        print(f"   {CYAN}2{RESET}. 📋 Kenali jenis hash")
-        print(f"   {CYAN}3{RESET}. ⚡ Benchmark kecepatan")
-        print(f"   {CYAN}4{RESET}. 📚 Bantuan & daftar algoritma")
-        print(f"   {CYAN}0{RESET}. keluar")
+        header("Main Menu")
+        print(f"   {CYAN}1{RESET}. Crack a hash / zip    {GREY}(full wizard){RESET}")
+        print(f"   {CYAN}2{RESET}. Identify hash type")
+        print(f"   {CYAN}3{RESET}. Speed benchmark")
+        print(f"   {CYAN}4{RESET}. Help & algorithm list")
+        print(f"   {CYAN}0{RESET}. exit")
         print()
-        ch = ask("pilih", "1")
+        ch = ask("choose", "1")
         if ch == "0":
-            print(f"\n  {GREY}selesai.{RESET}\n")
+            print(f"\n  {GREY}done.{RESET}\n")
             return 0
         if ch == "2":
             ident_mode()
@@ -1451,9 +1451,9 @@ def interactive():
         else:
             rc = crack_mode()
             if rc is not None:
-                again = ask("pecahkan hash lain? (y/n)", "n").lower()
+                again = ask("crack another hash? (y/n)", "n").lower()
                 if again != "y":
-                    print(f"\n  {GREY}selesai.{RESET}\n")
+                    print(f"\n  {GREY}done.{RESET}\n")
                     return 0
 
 
@@ -1463,17 +1463,17 @@ def main():
     ap = argparse.ArgumentParser(
         description="Local hash / zip cracker (CPU-only). No arguments = interactive menu.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=("Kode mask: ?l ?u ?d ?s ?a ?h ?H\n"
+        epilog=("Mask codes: ?l ?u ?d ?s ?a ?h ?H\n"
                 "Contoh: --mask '?l?l?l?d?d'  |  -w rockyou.txt -r\n"
                 "Termux: pkg install python && pip install bcrypt passlib"))
-    ap.add_argument("-H", "--hash", help="hash target atau path file zip")
+    ap.add_argument("-H", "--hash", help="hash target atau file path zip")
     src = ap.add_mutually_exclusive_group()
-    src.add_argument("-w", "--wordlist", help="file kamus")
-    src.add_argument("--mask", help="pola brute-force")
-    src.add_argument("--digits", type=int, metavar="N", help="angka 0..N digit")
-    src.add_argument("--literal", help="kata uji, pisah koma")
+    src.add_argument("-w", "--wordlist", help="file wordlist")
+    src.add_argument("--mask", help="mask brute-force")
+    src.add_argument("--digits", type=int, metavar="N", help="digits 0..N digit")
+    src.add_argument("--literal", help="test words, comma-separated")
     src.add_argument("--combo", nargs=2, metavar=("W1", "W2"),
-                     help="kombinasi dua kamus")
+                     help="combo dua wordlist")
     ap.add_argument("-r", "--rules", action="store_true", help="mutasi aturan")
     ap.add_argument("-t", "--threads", type=int, default=cpu_count())
     ap.add_argument("-c", "--chunk", type=int, default=None)
@@ -1494,10 +1494,10 @@ def main():
             ap.error("--identify butuh -H")
         kind, algo, extra = detect_kind(args.hash.strip())
         if kind == "unknown":
-            err("format tidak dikenali")
+            err("unknown format")
             return 2
-        kv("jenis", kind, CYAN)
-        kv("algoritma", ", ".join(algo) if isinstance(algo, list) else algo, GREEN)
+        kv("type", kind, CYAN)
+        kv("algorithm", ", ".join(algo) if isinstance(algo, list) else algo, GREEN)
         if extra:
             kv("extra", extra, GREY)
         return 0
@@ -1522,20 +1522,20 @@ def main():
         algo = algo if len(algo) > 1 else algo[0]
         extra = args.user or extra
     elif kind == "hex_multi":
-        # uji semua kandidat sederhana sekaligus
+        # test all simple candidates at once
         algo = [a for a in algo if a in SIMPLE_ALGOS] or algo[0]
         if len(algo) == 1:
             algo = algo[0]
             kind = "hex"
         extra = args.user or extra
-        print(f"{GREY}  › menguji beberapa format: {', '.join(algo) if isinstance(algo, list) else algo}{RESET}")
+        print(f"{GREY}  › testing multiple formats: {', '.join(algo) if isinstance(algo, list) else algo}{RESET}")
     elif kind == "hex" and args.user:
         extra = args.user
     if extra is None and isinstance(algo, str) and algo in NEEDS_USER:
         extra = "postgres" if algo == "postgres_md5" else "user"
 
     if kind == "unknown":
-        err("format hash tidak dikenali")
+        err("unknown hash format")
         return 2
 
     if not args.no_banner:
@@ -1544,7 +1544,7 @@ def main():
     total_hint = None
     if args.wordlist:
         if not os.path.isfile(args.wordlist):
-            err(f"kamus tidak ditemukan: {args.wordlist}")
+            err(f"wordlist not found: {args.wordlist}")
             return 2
         stream = gen_wordlist(args.wordlist, args.rules)
         if not args.rules:
@@ -1553,31 +1553,31 @@ def main():
                     total_hint = sum(1 for _ in f)
             except OSError:
                 pass
-        mode = "kamus" + (" + mutasi" if args.rules else "")
+        mode = "wordlist" + (" + mutasi" if args.rules else "")
     elif args.mask:
         total_hint = mask_size(args.mask)
         stream = gen_mask(args.mask)
-        mode = f"pola {args.mask}"
+        mode = f"mask {args.mask}"
     elif args.digits is not None:
         total_hint = sum(10 ** n for n in range(0, args.digits + 1))
         stream = gen_digits(args.digits)
-        mode = f"angka 0..{args.digits}"
+        mode = f"digits 0..{args.digits}"
     elif args.combo:
         p1, p2 = args.combo
         if not (os.path.isfile(p1) and os.path.isfile(p2)):
-            err("salah satu kamus tidak ditemukan")
+            err("one of the wordlists was not found")
             return 2
         stream = gen_combo(p1, p2)
-        mode = f"kombinasi {os.path.basename(p1)} + {os.path.basename(p2)}"
+        mode = f"combo {os.path.basename(p1)} + {os.path.basename(p2)}"
     else:
         words = [w.strip() for w in args.literal.split(",") if w.strip()]
         total_hint = len(words)
         stream = iter(words)
-        mode = "kata tertentu"
+        mode = "literal"
 
-    header("Pemecahan", "")
+    header("Cracking", "")
     kv("target", target[:50] + ("..." if len(target) > 50 else ""), GREY)
-    kv("algoritma", str(algo), MAGENTA)
+    kv("algorithm", str(algo), MAGENTA)
     kv("mode", mode, CYAN)
     kv("core", str(args.threads), RESET)
     if extra:
@@ -1595,7 +1595,7 @@ def main():
             panel=panel, detail=str(algo), extra=extra)
     except KeyboardInterrupt:
         print("\r\033[K")
-        warn("dihentikan pengguna")
+        warn("stopped by user")
         return 130
     okk = show_result(found, done, elapsed, target, str(hit_algo))
     return 0 if okk else 1
