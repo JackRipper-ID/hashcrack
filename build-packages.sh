@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Build distributable packages: .deb + .AppImage
-# Requires: dpkg-deb, fakeroot, mksquashfs (squashfs-tools), python3
-# Usage:  bash build-packages.sh
 set -eu
 
 VERSION="${VERSION:-1.0.0}"

@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# ============================================================
-#  hashcrack - installer for Kali / Debian / Ubuntu / Parrot
-#  Installs: the `hashcrack` command, desktop entry + icon
-#  Usage:  sudo bash install-linux.sh
-# ============================================================
 set -u
 
 G='\033[92m'; Y='\033[93m'; C='\033[96m'; R='\033[0m'; B='\033[1m'
@@ -22,7 +17,6 @@ if [ "$(id -u)" != "0" ]; then
   warn "Not root - re-run with: sudo bash $0"
 fi
 
-# 1. detect package manager
 step "Detecting package manager"
 if command -v apt >/dev/null 2>&1; then
   PKG="apt"
@@ -39,7 +33,6 @@ else
 fi
 ok "package manager: $PKG"
 
-# 2. base packages
 step "Installing base packages (python3, bcrypt, passlib, p7zip)"
 case "$PKG" in
   apt)
@@ -62,7 +55,6 @@ case "$PKG" in
     ;;
 esac
 
-# 3. verify modules, fallback to pip
 step "Verifying python modules"
 MISSING=0
 python3 -c "import bcrypt" 2>/dev/null || MISSING=1
@@ -76,7 +68,6 @@ else
   ok "bcrypt & passlib ready"
 fi
 
-# 4. install the tool (program + launcher + desktop entry + icon)
 step "Installing hashcrack"
 SRC="$(cd "$(dirname "$0")" && pwd)"
 if [ ! -f "$SRC/hashcrack.py" ]; then
@@ -100,7 +91,6 @@ mkdir -p "$BIN" "$SHARE/hashcrack" "$ICONDIR" "$APPDIR"
 cp "$SRC/hashcrack.py" "$SHARE/hashcrack/hashcrack.py"
 chmod +x "$SHARE/hashcrack/hashcrack.py"
 
-# launcher (keeps terminal open when started from a desktop icon)
 if [ -f "$SRC/hashcrack.sh" ]; then
   cp "$SRC/hashcrack.sh" "$BIN/hashcrack"
 else
@@ -120,7 +110,6 @@ fi
 chmod +x "$BIN/hashcrack"
 ok "command installed: hashcrack"
 
-# desktop entry + icon (double-click opens a terminal running HASHCRACK)
 cp "$SRC/hashcrack.py" /dev/null 2>/dev/null || true
 if [ -f "$SRC/packaging/hashcrack.desktop" ]; then
   sed -e "s|^Icon=.*|Icon=hashcrack|" \
@@ -139,13 +128,11 @@ command -v gtk-update-icon-cache   >/dev/null 2>&1 && gtk-update-icon-cache -qtf
   [ -d /usr/share/icons/hicolor ] && echo /usr/share/icons/hicolor || echo "$HOME/.local/share/icons/hicolor")" 2>/dev/null
 ok "menu entry + icon installed (app launcher: HASHCRACK)"
 
-# 5. wordlist folder
 step "Preparing ~/wordlists"
 mkdir -p "$HOME/wordlists"
 ok "folder ready - drop any .txt wordlist there"
 [ -f /usr/share/wordlists/rockyou.txt ] && ok "Kali rockyou.txt detected (auto-include)"
 
-# 6. summary
 say ""
 say "${C}  ---------------------------------------------${R}"
 say "${G}${B}  Done!${R}"

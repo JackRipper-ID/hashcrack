@@ -1,45 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-hashcrack.py — local hash cracker (CPU-only) with a fully animated TUI.
+hashcrack.py - local hash cracker (CPU-only) with a fully animated TUI.
 Works on Linux desktop and Android Termux.
 
-  ⚡ HASHCRACK by JackRipper-ID
+  HASHCRACK by JackRipper-ID
   https://github.com/JackRipper-ID/hashcrack
-
-Run without arguments for the interactive menu:
-    ./hashcrack.py
-
-CLI cepat:
-    ./hashcrack.py -H <hash> -w wordlist.txt
-    ./hashcrack.py -H <hash> -w wordlist.txt -r
-    ./hashcrack.py -H <hash> --mask "?l?l?l?d?d"
-    ./hashcrack.py -H <hash> --digits 6
-    ./hashcrack.py -H <hash> --combo w1.txt w2.txt     # combo dua wordlist
-    ./hashcrack.py -H <hash> --literal "kata1,kata2"
-
-Format hash didukung (deteksi otomatis):
-  ── HEX MURNI ──
-  md4*, md5, sha1, sha224, sha256, sha384, sha512, sha3-224/256/384/512,
-  blake2b/blake2s, ripemd160, sm3, sha512_224/256, ntlm (md4),
-  mysql323, mysql41, lm, nthash, postgres_md5 (md5:pguser),
-  oracle10 (user), oracle11, htdigest (user:realm), mssql2000/2005
-  ── CRYPT / TERFORMAT ──
-  $1$  md5crypt / apr1 (htpasswd)      $2a/$2b/$2y/$2x  bcrypt
-  $5$  sha256crypt                     $6$  sha512crypt
-  $P$/$H$  phpass (WordPress/phpBB)    $pbkdf2-sha1/256/512$
-  $apr1$  apr_md5                      _  bsdi_crypt
-  {PKCS5S2} atlassian                  {SSHA}/plain ldap
-  django_*, grub.pbkdf2, $scram$, $md5,rounds= (sun_md5),
-  sha1_crypt, crypt16, bigcrypt, des_crypt, cisco_type7/pix/asa,
-  msdcc/msdcc2 (domain cache), fshp, bsdi/bcrypt_sha256
-  ── FILE ──
-  zip (ZipCrypto + AES-256 via 7z), sqlite (plaintext re-check)
-
-* md4 memakai implementasi murni Python bila OpenSSL menolaknya.
-
-Lisensi: bebas dipakai & dimodifikasi. Gunakan HANYA pada hash milik
-Anda sendiri atau sistem yang Anda punya izin mengujinya.
 """
 
 import argparse
@@ -59,18 +25,12 @@ import time
 import zlib
 from collections import deque
 
-# ══════════════════════════ kompatibilitas ══════════════════════════
 
 IS_TERMX = bool(os.environ.get("TERMUX_VERSION")) or "/com.termux" in os.environ.get("PREFIX", "")
 IS_ANDROID = os.path.exists("/system/build.prop") or IS_TERMX
 
 
 def _boost_cpu():
-    """
-    Android + root: lepas batas cpufreq yang dipasang thermal-engine/AMS
-    (biasanya 1.74 GHz di Snapdragon 865) agar prime core jalan di clock
-    maksimum. Naik ~25-80% throughput. Aman diabaikan bila gagal.
-    """
     if not (IS_ANDROID and os.getuid() == 0):
         return
     def _w(path, val):
@@ -79,14 +39,12 @@ def _boost_cpu():
                 f.write(val)
         except Exception:
             pass
-    # batas global: ambil dari clock maksimum prime core
     try:
         peak = int(open("/sys/devices/system/cpu/cpufreq/policy7/"
                         "cpuinfo_max_freq").read())
         _w("/sys/power/cpufreq_max_limit", str(peak))
     except Exception:
         pass
-    # tiap cluster: naikkan ke batas hardware-nya sendiri
     import glob
     for pol in glob.glob("/sys/devices/system/cpu/cpufreq/policy*"):
         try:
@@ -95,7 +53,6 @@ def _boost_cpu():
         except Exception:
             pass
 
-# Termux/Android kadang tidak punya fork — fallback ke forkserver/spawn
 try:
     _CTX_NAME = "fork" if "fork" in mp.get_all_start_methods() else "spawn"
 except Exception:
@@ -109,8 +66,6 @@ def cpu_count():
     except Exception:
         return os.cpu_count() or 1
 
-
-# ══════════════════════════ warna & tata letak ══════════════════════════
 
 def _stdout_tty():
     try:
@@ -169,22 +124,22 @@ def banner():
         grad = [51, 45, 39, 33, 27, 21]
         for i, line in enumerate(art):
             print(f"{_fg(grad[i])}{line}{RESET}")
-        env = " · termux" if IS_TERMX else (" · android" if IS_ANDROID else "")
+        env = " - termux" if IS_TERMX else (" - android" if IS_ANDROID else "")
         boosted = ""
         if IS_ANDROID and os.getuid() == 0:
             try:
                 cur = int(open("/sys/devices/system/cpu/cpufreq/policy7/"
                                "scaling_max_freq").read())
                 if cur >= 2500000:
-                    boosted = " · boost"
+                    boosted = " - boost"
             except Exception:
                 pass
-        print(f"{GREY}{'local · CPU-only · ' + str(cpu_count()) + ' core'
+        print(f"{GREY}{'local - CPU-only - ' + str(cpu_count()) + ' core'
               + env + boosted:^{w}}{RESET}")
         print(f"{GREY}{'by JackRipper-ID':^{w}}{RESET}")
     else:
-        print(f"\n{CYAN}{BOLD}  ⚡ HASHCRACK{RESET}  "
-              f"{GREY}local · CPU-only · by JackRipper-ID{RESET}")
+        print(f"\n{CYAN}{BOLD}  HASHCRACK{RESET}  "
+              f"{GREY}local - CPU-only - by JackRipper-ID{RESET}")
     print()
 
 
@@ -197,15 +152,13 @@ def header(title, sub=""):
     rule("─", BLUE)
 
 
-def ok(msg):    print(f"{GREEN}  ✔ {msg}{RESET}")
+def ok(msg):    print(f"{GREEN}  [OK] {msg}{RESET}")
 def warn(msg):  print(f"{YELLOW}  ! {msg}{RESET}")
-def err(msg):   print(f"{RED}  ✘ {msg}{RESET}")
-def info(msg):  print(f"{BLUE}  › {msg}{RESET}")
+def err(msg):   print(f"{RED}  [X] {msg}{RESET}")
+def info(msg):  print(f"{BLUE}  > {msg}{RESET}")
 def kv(k, v, color=RESET):
     print(f"  {GREY}{k:<14}{RESET}{color}{v}{RESET}")
 
-
-# ══════════════════════════ md4 fallback (NTLM/LM) ══════════════════════════
 
 try:
     hashlib.new("md4", b"x")
@@ -261,8 +214,6 @@ def md4_digest(data):
     return _md4_py(data)
 
 
-# ══════════════════════════ deteksi algorithm ══════════════════════════
-
 HEX_LEN = {
     8: ["crc32"],
     16: ["mysql323", "des_crypt"],
@@ -275,40 +226,27 @@ HEX_LEN = {
     128: ["sha512", "blake2b", "sha3_512"],
 }
 
-# Algoritma yang bisa diuji tanpa nama user tambahan
 SIMPLE_ALGOS = {"md5", "sha1", "sha224", "sha256", "sha384", "sha512",
                 "sha3_224", "sha3_256", "sha3_384", "sha3_512",
                 "blake2s", "blake2b", "ripemd160", "sm3",
                 "sha512_224", "sha512_256", "mysql323", "mysql41",
                 "ntlm", "lm", "mssql2000", "mssql2005"}
 
-# Algoritma yang butuh nama user tambahan
 NEEDS_USER = {"msdcc", "msdcc2", "oracle10", "htdigest", "postgres_md5", "cisco_asa"}
 
 
 def detect_kind(h):
-    """
-    Return (kind, algo, extra):
-      'hex'       → digest hex murni
-      'hex_multi' -> length matches several formats, algo = candidate list
-      'crypt'     → passlib / bcrypt
-      'zip'       → file ZIP
-      'unknown'
-    """
     h = h.strip()
 
     if os.path.isfile(h) and h.lower().endswith(".zip"):
         return "zip", "zip", h
 
-    # ── mysql323 (16 hex, dua bagian 8 hex) ──
     if re.fullmatch(r"[0-9A-Fa-f]{16}", h):
         return "hex", "mysql323", None
 
-    # ── mysql41 (* + 40 hex) ──
     if re.fullmatch(r"\*[0-9A-F]{40}", h):
         return "hex", "mysql41", None
 
-    # ── crypt berprefiks ──
     CRYPT_MAP = [
         (r"^\$1\$", "md5_crypt"),
         (r"^\$apr1\$", "apr_md5_crypt"),
@@ -341,16 +279,13 @@ def detect_kind(h):
         if re.match(pat, h):
             return "crypt", name, None
 
-    # ── postgres: "md5" + 32 hex ──
     m = re.fullmatch(r"md5([0-9A-Fa-f]{32})", h)
     if m:
         return "hex", "postgres_md5", m.group(1)
 
-    # ── mssql: 0x + 92 hex (2000/2005 tak bisa dibedakan tanpa verifikasi) ──
     if re.fullmatch(r"0x[0-9A-Fa-f]{92}", h):
         return "hex_multi", ["mssql2000", "mssql2005"], None
 
-    # ── hex murni ──
     if re.fullmatch(r"[0-9A-Fa-f]+", h) and len(h) % 2 == 0:
         cands = HEX_LEN.get(len(h))
         if cands:
@@ -362,10 +297,8 @@ def detect_kind(h):
     return "unknown", None, None
 
 
-# ══════════════════════════ helper hash mandiri ══════════════════════════
-
 def _mysql323(s):
-    """MySQL 3.23 password hash (64-bit: dua nilai 31-bit digabung)."""
+    """MySQL 3.23 password hash (two 31-bit halves)."""
     import passlib.hash as ph
     return ph.mysql323.hash(s).upper()
 
@@ -376,7 +309,7 @@ def _nthash(s):
 
 
 def _lmhash(s):
-    """Windows LM hash — password diubah ke uppercase, dipad ke 14 byte."""
+    """Windows LM hash (uppercased, padded to 14 bytes)."""
     import passlib.hash as _ph
     return _ph.lmhash.hash(s[:14]) if hasattr(_ph, "lmhash") else ""
 
@@ -398,10 +331,8 @@ def _digest_for(algo, cand):
     return hashlib.new(algo, cand.encode("utf-8", "surrogatepass")).hexdigest()
 
 
-# ══════════════════════════ worker ══════════════════════════
-
 _target = _kind = _algo = _verifier = _counter = _extra = None
-_algos = None          # candidate list for hex_multi
+_algos = None
 
 
 def _init_worker(target, kind, algo, counter, extra=None):
@@ -423,10 +354,9 @@ def _init_worker(target, kind, algo, counter, extra=None):
 
 
 def _check_with(cand, algo):
-    """Sama seperti _check tapi terhadap satu algorithm tertentu."""
+    """Like _check but against one specific algorithm."""
     global _algo
     if _kind == "hex_multi":
-        # uji hex dengan algorithm bergantian
         old = _algo
         _algo = algo
         try:
@@ -508,8 +438,6 @@ def worker_chunk(candidates):
     return None
 
 
-# ══════════════════════════ candidate generators ══════════════════════════
-
 LEET = str.maketrans("aeiostAEIOST", "431057431057")
 SUFFIXES = ("", "1", "12", "123", "1234", "12345", "0", "00", "007",
             "2020", "2021", "2022", "2023", "2024", "2025", "2026",
@@ -543,7 +471,7 @@ def gen_wordlist(path, rules=False):
 
 
 def gen_combo(path1, path2, limit=200000):
-    """Semua combo w1 + w2 (dengan batas aman)."""
+    """All w1 + w2 combos (with a safety cap)."""
     with open(path1, "r", encoding="utf-8", errors="ignore") as f1, \
          open(path2, "r", encoding="utf-8", errors="ignore") as f2:
         w2 = [l.rstrip("\r\n") for l in f2 if l.strip()]
@@ -607,8 +535,6 @@ def gen_digits(max_len):
             yield "".join(combo)
 
 
-# ══════════════════════════ orkestrasi ══════════════════════════
-
 def chunks(it, size):
     buf = []
     for x in it:
@@ -632,8 +558,6 @@ def human_time(s):
 def fmt_num(n):
     return f"{n:,}".replace(",", ".")
 
-
-# ── panel animasi yang digambar ulang di tempat (tidak menggulir) ──
 
 SPIN = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
 WAVE = "▁▂▃▄▅▆▇█"
@@ -800,8 +724,6 @@ def run(target, kind, algo, stream, total_hint, workers, chunk_size,
     return found, counter.value, elapsed, hit
 
 
-# ══════════════════════════ kotak hasil ══════════════════════════
-
 def _box(title, lines, color):
     w = min(tw(), 78) - 4
     inner = max([len(_strip(l)) for l in lines] + [len(title) + 2, 20])
@@ -838,8 +760,6 @@ def show_result(found, done, elapsed, target, algo):
     return False
 
 
-# ══════════════════════════ wordlist & utilitas ══════════════════════════
-
 COMMON = """123456 password 12345678 qwerty 123456789 12345 1234 111111 1234567 dragon
 123123 baseball abc123 football monkey letmein 696969 shadow master 666666
 qwertyuiop 123321 mustang 1234567890 michael 654321 superman 1qaz2wsx 7777777
@@ -864,7 +784,6 @@ def find_wordlists():
         "/usr/share/wordlists/rockyou.txt.gz",
         "/usr/share/dict/words",
     ]
-    # semua wordlist di ~/wordlists dan folder tool (termasuk wordlist Indonesia)
     dirs = [os.path.expanduser("~/wordlists"), base,
             "/data/data/com.termux/files/home/wordlists",
             "/storage/emulated/0/wordlists"]
@@ -885,12 +804,10 @@ def find_wordlists():
         except OSError:
             continue
         real = os.path.realpath(c)
-        # lewati file kosong/terlalu kecil (bukan wordlist) dan duplikat
         if real in seen or size < 100:
             continue
         seen.add(real)
         out.append((c, size))
-    # yang kecil dulu (uji cepat), lalu yang besar
     out.sort(key=lambda t: t[1])
     return out
 
@@ -908,8 +825,6 @@ def ensure_deps():
         missing.append(("passlib", "pip install passlib"))
     return missing
 
-
-# ══════════════════════════ mode interaktif ══════════════════════════
 
 def ask(prompt, default=""):
     d = f" {GREY}[{default}]{RESET}" if default else ""
@@ -1165,7 +1080,6 @@ def pick_algo_from_multi(cands):
     print()
     ch = ask_int("choose", 0, 0, len(cands))
     if ch == 0:
-        # hanya algorithm sederhana (yang tidak butuh nama user)
         simple = [a for a in cands if a in SIMPLE_ALGOS]
         return simple or cands
     return cands[ch - 1]
@@ -1201,7 +1115,7 @@ def crack_mode():
     if kind == "hex_multi":
         algo = pick_algo_from_multi(algo)
         if isinstance(algo, list):
-            kind = "hex_multi"     # tetap multi, worker akan menguji semua
+            kind = "hex_multi"
         else:
             kind = "hex"
         if isinstance(algo, str) and algo in ("oracle10", "htdigest", "msdcc",
@@ -1293,8 +1207,6 @@ def crack_mode():
         return None
     return 0 if show_result(found, done, elapsed, h, hit_algo) else 1
 
-
-# ══════════════════════════ zip cracker ══════════════════════════
 
 _zip_path = None
 _zip_entry = None
@@ -1457,8 +1369,6 @@ def interactive():
                     return 0
 
 
-# ══════════════════════════ CLI ══════════════════════════
-
 def main():
     ap = argparse.ArgumentParser(
         description="Local hash / zip cracker (CPU-only). No arguments = interactive menu.",
@@ -1516,19 +1426,17 @@ def main():
         ap.error("pick a source: -w / --mask / --digits / --literal / --combo")
 
     if args.algo:
-        # --algo bisa berisi satu nama atau daftar dipisah koma
         algo = [a.strip() for a in args.algo.split(",") if a.strip()]
         kind = "hex_multi" if len(algo) > 1 else "hex"
         algo = algo if len(algo) > 1 else algo[0]
         extra = args.user or extra
     elif kind == "hex_multi":
-        # test all simple candidates at once
         algo = [a for a in algo if a in SIMPLE_ALGOS] or algo[0]
         if len(algo) == 1:
             algo = algo[0]
             kind = "hex"
         extra = args.user or extra
-        print(f"{GREY}  › testing multiple formats: {', '.join(algo) if isinstance(algo, list) else algo}{RESET}")
+        print(f"{GREY}  > testing multiple formats: {', '.join(algo) if isinstance(algo, list) else algo}{RESET}")
     elif kind == "hex" and args.user:
         extra = args.user
     if extra is None and isinstance(algo, str) and algo in NEEDS_USER:

@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-# hashcrack launcher
-#  - installed layout : /usr/share/hashcrack/hashcrack.py  (deb / make install)
-#  - user layout      : ~/.local/share/hashcrack/hashcrack.py
-#  - repo checkout    : hashcrack.py next to this launcher
-# Opened from a desktop icon the system starts a terminal window (Terminal=true
-# in the .desktop file) and sets HASHCRACK_PAUSE=1 so the window stays open.
 
 set -u
 
@@ -49,8 +43,6 @@ fi
 "$PY" "$TOOL" "$@"
 status=$?
 
-# launched from a desktop icon: keep the terminal window open so results/errors
-# stay readable instead of the window vanishing instantly
 if [ "${HASHCRACK_PAUSE:-0}" = "1" ] && [ -t 0 ]; then
   printf '\nPress Enter to close...'
   read -r _ || true

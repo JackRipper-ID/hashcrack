@@ -1,5 +1,4 @@
 #!/bin/sh
-# HASHCRACK AppImage launcher
 HERE="$(dirname "$(readlink -f "$0")")"
 
 PY=""

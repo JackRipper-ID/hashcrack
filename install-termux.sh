@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# ═══════════════════════════════════════════════════════════════════
-#  hashcrack — installer otomatis untuk Termux (Android)
-#  Pemakaian:  bash install-termux.sh
-# ═══════════════════════════════════════════════════════════════════
 set -u
 
 RED=$'\033[91m'; GREEN=$'\033[92m'; YELLOW=$'\033[93m'
@@ -18,7 +14,6 @@ say ""
 say "${BOLD}${CYAN}  ⚡ HASHCRACK — pemasangan untuk Termux${RST}"
 say "${GREY}  ─────────────────────────────────────────${RST}"
 
-# ── 1. cek lingkungan ──
 if [ -z "${TERMUX_VERSION:-}" ] && [ ! -d "/data/data/com.termux" ]; then
   warn "Ini sepertinya bukan Termux (tapi tetap bisa dicoba)."
 fi
@@ -31,13 +26,11 @@ fi
 ARCH=$(uname -m)
 step "Arsitektur: $ARCH"
 
-# ── 2. paket dasar ──
 step "Memasang paket dasar (python, p7zip)"
 pkg update -y >/dev/null 2>&1 || warn "pkg update gagal, lanjut saja"
 pkg install -y python p7zip >/dev/null 2>&1 && ok "python & p7zip siap" \
   || warn "sebagian paket gagal dipasang, coba manual: pkg install python p7zip"
 
-# ── 3. modul python ──
 step "Memasang modul Python (bcrypt, passlib)"
 python -m pip install --quiet --upgrade pip >/dev/null 2>&1 || true
 
@@ -47,7 +40,6 @@ install_mod() {
     ok "$mod sudah ada"
     return 0
   fi
-  # coba wheel dulu (cepat), lalu source, terakhir paket Termux
   if python -m pip install --quiet "$mod" 2>/dev/null; then
     ok "$mod terpasang (pip)"
   elif python -m pip install --quiet --no-cache-dir --no-binary :all: "$mod" 2>/dev/null; then
@@ -67,7 +59,6 @@ install_mod() {
 install_mod bcrypt
 install_mod passlib
 
-# ── 4. salin tool ──
 step "Memasang hashcrack.py"
 DEST="$HOME/hashcrack"
 mkdir -p "$DEST"
@@ -82,7 +73,6 @@ fi
 chmod +x "$DEST/hashcrack.py"
 ok "tool dipasang di $DEST/hashcrack.py"
 
-# ── 5. launcher ──
 step "Membuat perintah 'hashcrack'"
 LAUNCHER="$PREFIX/bin/hashcrack"
 mkdir -p "$PREFIX/bin"
@@ -93,7 +83,6 @@ EOF
 chmod +x "$LAUNCHER"
 ok "sekarang bisa dijalankan dari mana saja: $BOLD$hashcrack$RST"
 
-# ── 6. wordlist ──
 step "Menyiapkan folder wordlist"
 WL="$HOME/wordlists"
 mkdir -p "$WL"
@@ -119,7 +108,6 @@ else
   ok "top1m.txt sudah ada di $WL"
 fi
 
-# ── 7. ringkasan ──
 say ""
 say "${GREY}  ─────────────────────────────────────────${RST}"
 say "${BOLD}${GREEN}  Selesai!${RST}"
