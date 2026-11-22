@@ -1,6 +1,8 @@
 # ⚡ HASHCRACK
 
-**by JackRipper-ID**
+**by JackRipper-ID** · [MIT License](LICENSE)
+
+`python3` `termux` `hash-cracker` `bcrypt` `pentest` `offline` `cpu`
 
 Local hash cracker (CPU-only) with a fully animated TUI. Works on **Linux
 desktop** and **Android Termux**.
