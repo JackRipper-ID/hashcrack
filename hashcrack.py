@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 hashcrack.py - local hash cracker (CPU-only) with a fully animated TUI.
 Works on Linux desktop and Android Termux.
