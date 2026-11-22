@@ -206,7 +206,7 @@ LICENSE              MIT © JackRipper-ID
 
 <div align="center">
 
-**HASHCRACK** · crafted by **JackRipper-ID**
+**HASHCRACK** · <sub>crafted by <a href="https://github.com/JackRipper-ID">**JackRipper-ID**</a>
 
 *if this repo helped you, a star is appreciated*
 
