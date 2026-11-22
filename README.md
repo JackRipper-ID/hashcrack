@@ -1,8 +1,15 @@
 <div align="center">
 
-# ⚡ H A S H C R A C K
+```
+  ██╗  ██╗ █████╗ ███████╗██╗  ██╗ ██████╗██████╗  █████╗  ██████╗██╗  ██╗
+  ██║  ██║██╔══██╗██╔════╝██║  ██║██╔════╝██╔══██╗██╔══██╗██╔════╝██║ ██╔╝
+  ███████║███████║███████╗███████║██║     ██████╔╝███████║██║     █████╔╝ 
+  ██╔══██║██╔══██║╚════██║██╔══██║██║     ██╔══██╗██╔══██║██║     ██╔═██╗ 
+  ██║  ██║██║  ██║███████║██║  ██║╚██████╗██║  ██║██║  ██║╚██████╗██║  ██╗
+  ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
+```
 
-### *Animated local hash cracker — CPU-only, no GPU needed*
+### Animated local hash cracker — CPU-only, no GPU needed
 
 **by [JackRipper-ID](https://github.com/JackRipper-ID)** · [MIT License](LICENSE)
 
@@ -11,6 +18,31 @@
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![deps](https://img.shields.io/badge/required%20deps-zero-orange)
 ![formats](https://img.shields.io/badge/hash%20formats-39%2B-9cf)
+
+</div>
+
+---
+
+> **Ethical use only.** Use on hashes you own or are authorized to test
+> (your own accounts, sanctioned pentests, CTFs). Unauthorized access to
+> other people's systems is illegal.
+
+---
+
+## Features
+
+| | |
+|---|---|
+| **39+ hash formats** | auto-detected — ambiguous hex lengths tested against *all* matching algorithms at once |
+| **Fully animated TUI** | live panel redrawn in place (no scrolling): braille spinner, flowing gradient bar, real-time sparkline |
+| **6 attack modes** | wordlist · wordlist+rules · mask · PIN · literal · 2-wordlist combo |
+| **Encrypted ZIP** | ZipCrypto (pure Python) and AES-256 (via `7z`) |
+| **All cores** | multiprocessing with automatic `spawn` fallback |
+| **Android CPU boost** | lifts the thermal cpufreq cap on rooted devices (~+25-80% on SD865) |
+| **Auto wordlist discovery** | drop any `.txt`/`.lst` in `~/wordlists/` — it appears in the menu |
+| **Zero required deps** | pure Python stdlib; optional `bcrypt`/`passlib` unlock more formats |
+
+Live panel preview (redrawn in place, never scrolls):
 
 ```
   ██╗  ██╗ █████╗ ███████╗██╗  ██╗ ██████╗██████╗  █████╗  ██████╗██╗  ██╗
@@ -21,7 +53,7 @@
   ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝╚╚═════╝╚═╝  ╚═╝
 ┌─────────────────────────────────────────────────────────────┐
 │                                                             │
-│   ⠋ menganalisis   ['sha256', 'blake2s', 'sha3_256']        │
+│   . menganalisis   ['sha256', 'blake2s', 'sha3_256']        │
 │                                                             │
 │   ████████████████████████████░░░░░░░░░░  62.4%             │
 │                                                             │
@@ -29,32 +61,8 @@
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
-*The live panel — spinner, gradient bar, speed sparkline. Redrawn in place, never scrolls.*
 
-</div>
-
----
-
-> ⚠️ **Ethical use only.** Use on hashes you own or are authorized to test
-> (your own accounts, sanctioned pentests, CTFs). Unauthorized access to
-> other people's systems is illegal.
-
----
-
-## ✨ Features
-
-| | |
-|---|---|
-| 🔍 **39+ hash formats** | auto-detected — ambiguous hex lengths tested against *all* matching algorithms at once |
-| 🎞️ **Fully animated TUI** | live panel redrawn in place (no scrolling): braille spinner, flowing gradient bar, real-time sparkline |
-| ⚔️ **6 attack modes** | wordlist · wordlist+rules · mask · PIN · literal · 2-wordlist combo |
-| 🗜️ **Encrypted ZIP** | ZipCrypto (pure Python) and AES-256 (via `7z`) |
-| 🧵 **All cores** | multiprocessing with automatic `spawn` fallback |
-| 🚀 **Android CPU boost** | lifts the thermal cpufreq cap on rooted devices (~+25–80% on SD865) |
-| 📚 **Auto wordlist discovery** | drop any `.txt`/`.lst` in `~/wordlists/` — it appears in the menu |
-| 📦 **Zero required deps** | pure Python stdlib; optional `bcrypt`/`passlib` unlock more formats |
-
-## 📦 Install
+## Install
 
 ### Kali Linux / Debian / Ubuntu / Parrot / Fedora / Arch
 
@@ -114,7 +122,7 @@ The installer sets up python, p7zip, bcrypt, passlib, the `hashcrack`
 command, and `~/wordlists/`. On **rooted** phones the tool auto-boosts
 CPU clocks while cracking.
 
-## 🚀 Usage
+## Usage
 
 ```bash
 ./hashcrack.py                    # interactive menu (guided)
@@ -139,7 +147,7 @@ CPU clocks while cracking.
 |:--:|:--:|:--:|:--:|:--:|:--:|
 | lowercase | uppercase | digits | symbols | all | hex |
 
-## 🔐 Supported formats
+## Supported formats
 
 <details>
 <summary><b>Plain hex digests</b></summary>
@@ -159,12 +167,12 @@ bcrypt (`$2a/$2b/$2y/$2x`) · bcrypt-sha256 · md5crypt (`$1$`)
 apr1/htpasswd (`$apr1$`) · sha256crypt (`$5$`) · sha512crypt (`$6$`)
 sha1crypt (`$sha1$`) · sun-md5 (`$md5,rounds=`) · phpass (`$P$`/`$H$`)
 PBKDF2 (sha1/sha256/sha512) · Django PBKDF2 · GRUB PBKDF2 · SCRAM
-bsdi-crypt (`_…`) · crypt16 · DES · Atlassian `{PKCS5S2}` · LDAP `{SSHA}`
+bsdi-crypt (`_...`) · crypt16 · DES · Atlassian `{PKCS5S2}` · LDAP `{SSHA}`
 FSHP · Cisco PIX/ASA · and more
 
 </details>
 
-## 📚 Wordlists
+## Wordlists
 
 hashcrack scans `~/wordlists/` and its own folder (smallest first):
 
@@ -173,17 +181,17 @@ hashcrack scans `~/wordlists/` and its own folder (smallest first):
 - [Indonesian passwords](https://github.com/elliottophellia/wordlist) — 10M real ID passwords
 - Kali users: `/usr/share/wordlists/rockyou.txt` is found automatically
 
-## ⏱️ Typical performance
+## Typical performance
 
 | Device | SHA-256 | bcrypt cost 10 |
 |:--|--:|--:|
 | Laptop 4-core (i7-7600U) | ~300k H/s | ~40 H/s |
-| Phone 8-core (SD865, Termux, boosted) | ~116k H/s | ~75–82 H/s |
+| Phone 8-core (SD865, Termux, boosted) | ~116k H/s | ~75-82 H/s |
 
 > bcrypt is intentionally slow — big wordlists take hours on any CPU-only
 > setup. On Android run `termux-wake-lock` so the process survives screen-off.
 
-## 🗂️ Files
+## Files
 
 ```
 hashcrack.py         main tool — single file, stdlib only
@@ -196,8 +204,8 @@ LICENSE              MIT © JackRipper-ID
 
 <div align="center">
 
-**⚡ HASHCRACK** · crafted by **JackRipper-ID**
+**HASHCRACK** · crafted by **JackRipper-ID**
 
-*if this repo helped you, a ⭐ is appreciated*
+*if this repo helped you, a star is appreciated*
 
 </div>
