@@ -11,7 +11,6 @@ step()  { printf "\n${C}>>>${R} ${B}%s${R}\n" "$*"; }
 
 say ""
 say "${C}${B}  HASHCRACK by JackRipper-ID - Linux installer${R}"
-say "${C}  ---------------------------------------------${R}"
 
 if [ "$(id -u)" != "0" ]; then
   warn "Not root - re-run with: sudo bash $0"
@@ -134,7 +133,6 @@ ok "folder ready - drop any .txt wordlist there"
 [ -f /usr/share/wordlists/rockyou.txt ] && ok "Kali rockyou.txt detected (auto-include)"
 
 say ""
-say "${C}  ---------------------------------------------${R}"
 say "${G}${B}  Done!${R}"
 say ""
 say "  Terminal:   ${C}${B}hashcrack${R}"
