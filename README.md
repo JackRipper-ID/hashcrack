@@ -31,6 +31,8 @@
 | | |
 |---|---|
 | **39+ hash formats** | auto-detected — ambiguous hex lengths tested against *all* matching algorithms at once |
+| **Batch mode** | `--hash-file` cracks a whole list of hashes in **one pass** over the keyspace |
+| **JSON output** | `--json` prints one machine-readable object — easy to wire into scripts and pipelines |
 | **Fully animated TUI** | live panel redrawn in place (no scrolling): braille spinner, flowing gradient bar, real-time sparkline |
 | **6 attack modes** | wordlist · wordlist+rules · mask · PIN · literal · 2-wordlist combo |
 | **Encrypted ZIP** | ZipCrypto (pure Python) and AES-256 (via `7z`) |
@@ -142,12 +144,49 @@ CPU clocks while cracking.
 | Encrypted ZIP | `hashcrack -H file.zip` |
 | Force algorithm | `hashcrack -H <hash> -w wl.txt --algo ntlm` |
 | Username formats | `hashcrack -H <hash> -w wl.txt --user postgres` |
+| Batch (whole file) | `hashcrack --hash-file hashes.txt -w rockyou.txt` |
+| Machine-readable | `hashcrack -H <hash> -w rockyou.txt --json` |
+| Version | `hashcrack --version` |
 
 ### Mask codes
 
 | `?l` | `?u` | `?d` | `?s` | `?a` | `?h`/`?H` |
 |:--:|:--:|:--:|:--:|:--:|:--:|
 | lowercase | uppercase | digits | symbols | all | hex |
+
+## Batch mode & scripting
+
+`--hash-file` reads one hash per line (`#` comments and blank lines are
+skipped), keeps every hash it can verify, and tests them **all in the same
+pass** — one keyspace walk instead of one run per hash:
+
+```bash
+hashcrack --hash-file dump.txt -w rockyou.txt -t 8
+hashcrack --hash-file dump.txt -w rockyou.txt --json > cracked.json
+```
+
+Lines that are not plain hex digests (bcrypt, ZIP, garbage) are reported on
+stderr with their line number instead of being silently dropped.
+
+Every candidate is verified against each hash that is still uncracked, so a
+1 000-hash dump costs the same hash operations as 1 000 separate runs — you
+just pay the keyspace walk (and the process start-up) once.
+
+`--json` writes a single object to stdout and sends every informational
+message to stderr, so `| jq` works:
+
+```json
+{"algorithm": "sha256", "candidates": 2, "elapsed": 0.054,
+ "found": true, "mode": "literal", "password": "s3cret",
+ "target": "2bb80d537b1d…", "tested": ["sha256", "blake2s", "sha3_256"]}
+```
+
+Batch mode emits `{"cracked": 2, "total": 3, "candidates": …,
+"targets": [{"hash": …, "found": true, "password": …, "algorithm": …}]}`.
+
+Exit codes are stable: **0** = found (or every hash cracked), **1** = not
+found / partial, **2** = usage or input error. Hashes that need an optional
+module tell you which one (`passlib`, `bcrypt`) instead of failing quietly.
 
 ## Supported formats
 
@@ -197,9 +236,17 @@ hashcrack scans `~/wordlists/` and its own folder (smallest first):
 
 ```
 hashcrack.py         main tool — single file, stdlib only
+pyproject.toml       packaging + pytest config (tests/ runs with plain pytest)
+tests/               pytest suite — 65 tests, no optional deps required
 install-linux.sh     automated installer for Kali/Debian/Ubuntu/Fedora/Arch
 install-termux.sh    automated Termux (Android) installer
 LICENSE              MIT © JackRipper-ID
+```
+
+## Tests
+
+```bash
+python -m pytest tests/ -v        # 65 tests, zero optional dependencies
 ```
 
 ---
