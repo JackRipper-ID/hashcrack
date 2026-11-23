@@ -1,5 +1,7 @@
 <div align="center">
-       
+
+<img src="assets/hashcrack.png" width="220" alt="HASHCRACK logo">
+
 ```
     ░█░█░█▀█░█▀▀░█░█░█▀▀░█▀▄░█▀█░█▀▀░█░█
     ░█▀█░█▀█░▀▀█░█▀█░█░░░█▀▄░█▀█░█░░░█▀▄
@@ -234,7 +236,7 @@ hashcrack.sh         launcher used by the desktop entry
 install-linux.sh     installer: command + menu entry + icon
 install-termux.sh    automated Termux (Android) installer
 packaging/           .desktop file, AppRun, AppDir tree
-assets/              app icon (SVG + PNG set + ICO)
+assets/              app icon (original artwork: PNG set + ICO)
 LICENSE              MIT © JackRipper-ID
 ```
 
