@@ -1,13 +1,3 @@
-<div align="center">
-
-<img src="assets/hashcrack.png" width="220" alt="HASHCRACK logo">
-
-```
-    ░█░█░█▀█░█▀▀░█░█░█▀▀░█▀▄░█▀█░█▀▀░█░█
-    ░█▀█░█▀█░▀▀█░█▀█░█░░░█▀▄░█▀█░█░░░█▀▄
-    ░▀░▀░▀░▀░▀▀▀░▀░▀░▀▀▀░▀░▀░▀░▀░▀▀▀░▀░▀
-```
-
 ### HASHCRACK local hash tools cracker — CPU-only, no GPU needed
 
 **by [JackRipper-ID](https://github.com/JackRipper-ID)** · [MIT License](LICENSE)
